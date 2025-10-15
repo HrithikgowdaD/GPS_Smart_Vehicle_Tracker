@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>🚗 Smart Highway Tracker Dashboard</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.3/dist/leaflet.css">
+    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.3/dist/leaflet.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 text-gray-800 flex flex-col items-center">
+    <h1 class="text-3xl font-bold my-4 text-blue-700 flex items-center">
+        <span class="mr-2">🚘</span> Smart Highway Tracker Dashboard
+    </h1>
+
+    <div class="flex flex-row w-11/12 gap-4">
+        <!-- Dashboard Panel -->
+        <div class="bg-white p-5 rounded-2xl shadow-lg w-1/3 space-y-3">
+            <h2 class="text-xl font-semibold text-gray-700">📊 Live Stats</h2>
+            <p><strong>Total Distance:</strong> <span id="totalDist">0</span> km</p>
+            <p><strong>Highway Distance:</strong> <span id="highwayDist">0</span> km</p>
+            <p><strong>Total Fare:</strong> ₹<span id="fare">0.00</span></p>
+            <p><strong>Current Road:</strong> <span id="road">Waiting...</span></p>
+            <button id="replayBtn" class="bg-blue-600 text-white px-4 py-2 rounded-lg mt-3 hover:bg-blue-700">
+                🔁 Replay Last Trip
+            </button>
+        </div>
+
+        <!-- Map Section -->
+        <div id="map" class="rounded-2xl shadow-lg w-2/3 h-[550px]"></div>
+    </div>
+
+    <script>
+        // Initialize map
+        const map = L.map('map').setView([12.97, 77.59], 10);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18 }).addTo(map);
+
+        // Blue polyline for route
+        const routeLine = L.polyline([], { color: 'blue', weight: 5 }).addTo(map);
+
+        // Car marker (icon)
+        const carIcon = L.icon({
+            iconUrl: 'https://cdn-icons-png.flaticon.com/512/3097/3097144.png',
+            iconSize: [35, 35],
+            iconAnchor: [17, 17]
+        });
+        const carMarker = L.marker([12.97, 77.59], { icon: carIcon }).addTo(map);
+
+        // Function: Fetch latest route
+        async function fetchPath() {
+            const res = await fetch('/path');
+            const data = await res.json();
+            if (data.length > 0) {
+                const last = data[data.length - 1];
+                routeLine.setLatLngs(data.map(p => [p.lat, p.lng]));
+                carMarker.setLatLng([last.lat, last.lng]);
+                map.panTo([last.lat, last.lng]);
+            }
+        }
+
+        // Function: Fetch live stats
+        async function fetchStats() {
+            const res = await fetch('/stats');
+            const stats = await res.json();
+            document.getElementById("totalDist").innerText = stats.total_distance_km || 0;
+            document.getElementById("highwayDist").innerText = stats.total_highway_distance_km || 0;
+            document.getElementById("fare").innerText = stats.total_fare_rs || 0;
+        }
+
+        // Function: Replay last trip
+        async function replayTrip() {
+            const res = await fetch('/replay');
+            const data = await res.json();
+            if (!data.error && data.length > 0) {
+                routeLine.setLatLngs([]);
+                let i = 0;
+                const interval = setInterval(() => {
+                    if (i >= data.length) {
+                        clearInterval(interval);
+                        return;
+                    }
+                    const p = data[i];
+                    const lat = parseFloat(p.lat), lng = parseFloat(p.lng);
+                    routeLine.addLatLng([lat, lng]);
+                    carMarker.setLatLng([lat, lng]);
+                    map.panTo([lat, lng]);
+                    document.getElementById("road").innerText = p.road_name;
+                    document.getElementById("totalDist").innerText = p.total_km;
+                    document.getElementById("highwayDist").innerText = p.total_highway_km;
+                    document.getElementById("fare").innerText = p.fare_rs;
+                    i++;
+                }, 250);
+            }
+        }
+
+        // Attach replay button
+        document.getElementById("replayBtn").onclick = replayTrip;
+
+        // Update every 2 seconds
+        setInterval(fetchPath, 2000);
+        setInterval(fetchStats, 2000);
+    </script>
+</body>
+</html>

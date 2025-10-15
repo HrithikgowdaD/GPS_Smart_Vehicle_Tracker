@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Registration Success</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css">
+</head>
+<body class="bg-gray-50 p-10 text-center">
+    <h1 class="text-3xl text-green-600 font-bold mb-4">✅ Vehicle Registered Successfully!</h1>
+    <p class="text-lg">Vehicle Number: <strong>{{ vehicle.vehicle_no }}</strong></p>
+    <p>Owner: {{ vehicle.full_name }}</p>
+    <img src="/{{ vehicle.qr_code_path }}" alt="QR Code" class="mx-auto mt-6 border p-2">
+    <div class="mt-6">
+        <a href="/track/{{ vehicle.vehicle_no }}" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Start Tracking</a>
+        <a href="/register" class="ml-2 text-blue-600 hover:underline">Register Another Vehicle</a>
+    </div>
+</body>
+</html>

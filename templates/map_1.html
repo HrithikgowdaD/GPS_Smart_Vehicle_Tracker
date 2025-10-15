@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Smart Vehicle Tracker</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    html, body, #map { height: 100%; margin: 0; padding: 0; }
+    .info-box {
+      position: absolute; top: 10px; left: 10px; z-index: 1000;
+      background: white; padding: 10px; border-radius: 8px;
+      box-shadow: 0 0 5px rgba(0,0,0,0.3);
+      font-family: sans-serif;
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <div class="info-box" id="info">Waiting for data...</div>
+
+  <script>
+    const map = L.map('map').setView([12.9716, 77.5946], 14);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+
+    let polyline = L.polyline([], {color: 'blue', weight: 5}).addTo(map);
+    let marker = null;
+
+    async function fetchPath() {
+      const res = await fetch('/path');
+      const path = await res.json();
+      if (!path.length) return;
+
+      polyline.setLatLngs(path);
+      const last = path[path.length - 1];
+      if (!marker) marker = L.marker([last.lat, last.lng]).addTo(map);
+      marker.setLatLng([last.lat, last.lng]);
+      map.panTo([last.lat, last.lng]);
+    }
+
+    // Poll every 5 seconds
+    setInterval(fetchPath, 5000);
+    fetchPath();
+  </script>
+</body>
+</html>
