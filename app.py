@@ -142,8 +142,44 @@ def user_dashboard():
     user = users_col.find_one({"_id": session["user_id"]})
     vehicles = list(vehicles_col.find({"phone": user.get("phone")})) or []
     vehicle_nos = [v["vehicle_no"] for v in vehicles]
+
+    # Fetch trips for user vehicles
     trips = list(trips_col.find({"vehicle_no": {"$in": vehicle_nos}}).sort("timestamp", -1))
-    return render_template("user_dashboard.html", user=user, vehicles=vehicles, trips=trips)
+
+    # Compute total highway distance and fare
+    total_distance = sum(float(t.get("total_distance", 0)) for t in trips)
+    total_highway_distance = sum(float(t.get("highway_distance", 0)) for t in trips)
+    total_fare = round(total_highway_distance * 1.2, 2)
+
+    # Fetch latest live ping for each vehicle
+    live_data = {}
+    for v in vehicle_nos:
+        ping = pings_col.find_one({"vehicle_no": v}, sort=[("timestamp", -1)])
+        if ping:
+            live_data[v] = ping
+
+    return render_template(
+        "user_dashboard.html",
+        user=user,
+        vehicles=vehicles,
+        trips=trips,
+        total_distance=round(total_distance, 2),
+        total_highway_distance=round(total_highway_distance, 2),
+        total_fare=total_fare,
+        live_data=live_data,
+        google_maps_key=os.environ.get("GOOGLE_MAPS_API_KEY", "")
+    )
+
+
+@app.route("/api/user_vehicle_live/<vehicle_no>")
+@login_required(role="normal")
+def api_user_vehicle_live(vehicle_no):
+    ping = pings_col.find_one({"vehicle_no": vehicle_no}, sort=[("timestamp", -1)])
+    if not ping:
+        return jsonify({"error": "No live data found"})
+    ping["_id"] = str(ping["_id"])
+    return jsonify(ping)
+
 
 # Developer dashboard
 @app.route("/dev_dashboard")

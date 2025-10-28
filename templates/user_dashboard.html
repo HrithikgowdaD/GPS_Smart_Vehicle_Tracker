@@ -1,44 +1,130 @@
 {% extends "base.html" %}
 {% block content %}
-<h3>Your Dashboard</h3>
-<div class="row">
-  <div class="col-md-6">
-    <h5>Your vehicles</h5>
-    <a class="btn btn-sm btn-primary mb-2" href="{{ url_for('register_vehicle') }}">Register vehicle</a>
-    {% if vehicles %}
-      <ul class="list-group">
-        {% for v in vehicles %}
-          <li class="list-group-item d-flex justify-content-between align-items-center">
-            {{ v.vehicle_no }}
-            <a href="{{ url_for('history', vehicle_no=v.vehicle_no) }}" class="btn btn-sm btn-outline-secondary">History</a>
-          </li>
-        {% endfor %}
-      </ul>
-    {% else %}
-      <p>No vehicles found.</p>
-    {% endif %}
-  </div>
+<h3>Welcome, {{ user.full_name }}</h3>
 
-  <div class="col-md-6">
-    <h5>Trips</h5>
-    {% if trips %}
-      <table class="table">
-        <thead><tr><th>Vehicle</th><th>Distance</th><th>Highway</th><th>Fare</th><th>When</th></tr></thead>
-        <tbody>
-          {% for t in trips %}
-            <tr>
-              <td>{{ t.vehicle_no }}</td>
-              <td>{{ t.total_distance or '-' }}</td>
-              <td>{{ t.highway_distance or '-' }}</td>
-              <td>{{ t.total_fare or '-' }}</td>
-              <td>{{ t.timestamp.strftime("%Y-%m-%d %H:%M:%S") if t.timestamp else '-' }}</td>
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    {% else %}
-      <p>No trips yet.</p>
-    {% endif %}
+<div class="row mb-3">
+  <div class="col-md-3">
+    <div class="card p-3 shadow-sm">
+      <h6>💰 Wallet Balance</h6>
+      <h4>₹{{ vehicles[0].balance if vehicles else 0 }}</h4>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card p-3 shadow-sm">
+      <h6>🚗 Total Distance</h6>
+      <h4>{{ total_distance }} km</h4>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card p-3 shadow-sm">
+      <h6>🛣️ Highway Distance</h6>
+      <h4>{{ total_highway_distance }} km</h4>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card p-3 shadow-sm">
+      <h6>💵 Highway Fare</h6>
+      <h4>₹{{ total_fare }}</h4>
+    </div>
   </div>
 </div>
+
+<hr>
+
+<h5>Your Registered Vehicles</h5>
+{% if vehicles %}
+  <table class="table table-bordered">
+    <thead class="table-light">
+      <tr>
+        <th>Vehicle Number</th>
+        <th>Owner Name</th>
+        <th>Track</th>
+        <th>History</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for v in vehicles %}
+      <tr>
+        <td>{{ v.vehicle_no }}</td>
+        <td>{{ v.owner_name }}</td>
+        <td><button class="btn btn-sm btn-outline-primary" onclick="showMap('{{ v.vehicle_no }}')">Track</button></td>
+        <td><a href="{{ url_for('history', vehicle_no=v.vehicle_no) }}" class="btn btn-sm btn-outline-secondary">History</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% else %}
+  <p>No registered vehicles.</p>
+{% endif %}
+
+<hr>
+
+<div id="map-container" style="display:none;">
+  <h5>Live Vehicle Tracking</h5>
+  <div id="map" style="height:400px;border-radius:10px;"></div>
+</div>
+
+<hr>
+<h5>Trip History</h5>
+{% if trips %}
+  <table class="table table-striped">
+    <thead><tr><th>Date</th><th>Vehicle</th><th>Total km</th><th>Highway km</th><th>Fare</th></tr></thead>
+    <tbody>
+      {% for t in trips %}
+      <tr>
+        <td>{{ t.timestamp.strftime("%Y-%m-%d %H:%M:%S") if t.timestamp else "-" }}</td>
+        <td>{{ t.vehicle_no }}</td>
+        <td>{{ t.total_distance }}</td>
+        <td>{{ t.highway_distance }}</td>
+        <td>₹{{ t.total_fare }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% else %}
+  <p>No trips yet.</p>
+{% endif %}
+
+<script>
+  let map, marker;
+  const apiKey = "{{ google_maps_key }}";
+
+  function showMap(vehicle_no) {
+    document.getElementById("map-container").style.display = "block";
+    if (!window.google || !google.maps) {
+      const s = document.createElement("script");
+      s.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}`;
+      s.onload = () => initMap(vehicle_no);
+      document.head.appendChild(s);
+    } else {
+      initMap(vehicle_no);
+    }
+  }
+
+  function initMap(vehicle_no) {
+    fetch(`/api/user_vehicle_live/${vehicle_no}`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.error) {
+          alert("No live data yet for " + vehicle_no);
+          return;
+        }
+        const pos = { lat: parseFloat(data.lat), lng: parseFloat(data.lng) };
+        if (!map) {
+          map = new google.maps.Map(document.getElementById("map"), {
+            center: pos,
+            zoom: 10,
+          });
+        }
+        if (marker) marker.setMap(null);
+        marker = new google.maps.Marker({
+          position: pos,
+          map: map,
+          title: vehicle_no,
+        });
+        map.setCenter(pos);
+      })
+      .catch(err => console.error(err));
+  }
+</script>
 {% endblock %}
