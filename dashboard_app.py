@@ -106,22 +106,24 @@ def register():
 
 
 # ---------- Login ----------
+# ---------- Login ----------
 @app.route("/login", methods=["POST"])
 def login():
     email = request.form.get("email")
     password = request.form.get("password")
-    role = request.form.get("role")  # "normal" or "developer"
+    role = request.form.get("role")  # "normal" or "developer" selected on form
 
     user = users_col.find_one({"email": email})
     if not user or not check_password_hash(user["password_hash"], password):
         flash("Invalid credentials.", "danger")
         return redirect(url_for("home"))
 
+    # if login role selected is developer but user isn't developer, deny
     if role == "developer" and user.get("role") != "developer":
-        flash("You are not authorized as a developer.", "danger")
+        flash("You are not a developer user.", "danger")
         return redirect(url_for("home"))
 
-    # ✅ FIX: store only string ID, not raw ObjectId
+    # ✅ FIX: store only string ID, not ObjectId
     session["user_id"] = str(user["_id"])
     session["email"] = user["email"]
     session["role"] = user.get("role", "normal")
@@ -132,7 +134,6 @@ def login():
         return redirect(url_for("dev_dashboard"))
     else:
         return redirect(url_for("user_dashboard"))
-
 
 # ---------- Logout ----------
 @app.route("/logout")
