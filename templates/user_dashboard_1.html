@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>User Dashboard | Smart Toll System</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+
+  <style>
+    body {
+      background-color: #f4f6f8;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    .navbar {
+      background-color: #004aad;
+    }
+    .navbar-brand, .nav-link {
+      color: #fff !important;
+    }
+    .dashboard-container {
+      margin: 2rem auto;
+      max-width: 1200px;
+    }
+    #map {
+      height: 500px;
+      border-radius: 10px;
+      margin-top: 1rem;
+    }
+    .table th, .table td {
+      vertical-align: middle;
+    }
+    .card {
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+  </style>
+</head>
+<body>
+  <!-- Navbar -->
+  <nav class="navbar navbar-expand-lg navbar-dark">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="#">Smart Toll System</a>
+      <div>
+        <a href="{{ url_for('logout') }}" class="btn btn-light btn-sm">Logout</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Dashboard -->
+  <div class="container dashboard-container">
+    <h3 class="mb-4 text-center">Welcome, {{ user.full_name }}</h3>
+
+    <!-- Balance Section -->
+    <div class="row">
+      <div class="col-md-4">
+        <div class="card p-3 text-center">
+          <h5>Your Wallet Balance</h5>
+          <h3 class="text-success">₹{{ vehicles[0].balance if vehicles else 0 }}</h3>
+          <form action="{{ url_for('api_recharge') }}" method="post" class="mt-3 d-flex justify-content-center">
+            <input type="hidden" name="vehicle_no" value="{{ vehicles[0].vehicle_no if vehicles else '' }}">
+            <input type="number" name="amount" class="form-control w-50" placeholder="Amount" required>
+            <button class="btn btn-primary ms-2">Recharge</button>
+          </form>
+        </div>
+      </div>
+
+      <div class="col-md-8">
+        <div class="card p-3">
+          <h5>Your Registered Vehicles</h5>
+          {% if vehicles %}
+          <table class="table table-hover mt-3">
+            <thead>
+              <tr>
+                <th>Vehicle No</th>
+                <th>Owner</th>
+                <th>Balance</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for v in vehicles %}
+              <tr>
+                <td>{{ v.vehicle_no }}</td>
+                <td>{{ v.owner_name }}</td>
+                <td>₹{{ v.balance }}</td>
+                <td>
+                  <a href="{{ url_for('history', vehicle_no=v.vehicle_no) }}" class="btn btn-sm btn-outline-secondary">History</a>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          {% else %}
+          <p class="text-muted">No vehicles registered yet.</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Live Map Section -->
+    <div class="card mt-4 p-3">
+      <h5>Live Vehicle Tracking</h5>
+      <div id="map"></div>
+      <p class="text-center mt-2"><em>Blue line shows your vehicle's highway route.</em></p>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script>
+    const map = L.map('map').setView([12.9716, 77.5946], 7);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+
+    let markers = {};
+    let routes = {};
+
+    const socket = io();
+
+    socket.on("connect", () => {
+      console.log("✅ Connected to live tracking");
+    });
+
+    socket.on("location_update", (data) => {
+      const { vehicle_no, lat, lng } = data;
+      if (!lat || !lng) return;
+
+      // Only show vehicles owned by this user
+      const userVehicles = {{ vehicles | tojson }};
+      const ownedNos = userVehicles.map(v => v.vehicle_no);
+      if (!ownedNos.includes(vehicle_no)) return;
+
+      if (!markers[vehicle_no]) {
+        markers[vehicle_no] = L.marker([lat, lng]).addTo(map).bindPopup(vehicle_no);
+        routes[vehicle_no] = L.polyline([[lat, lng]], { color: 'blue', weight: 4 }).addTo(map);
+        map.setView([lat, lng], 10);
+      } else {
+        markers[vehicle_no].setLatLng([lat, lng]);
+        routes[vehicle_no].addLatLng([lat, lng]);
+      }
+    });
+
+    socket.on("disconnect", () => {
+      console.log("⚠️ Disconnected from tracking server");
+    });
+  </script>
+</body>
+</html>

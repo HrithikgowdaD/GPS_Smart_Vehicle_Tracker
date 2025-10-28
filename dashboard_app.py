@@ -1,9 +1,14 @@
 # dashboard_app.py
+# ✅ Smart Toll System Dashboard with MongoDB + Socket.IO Live Map
+
+import pkgutil, importlib.util
+if not hasattr(pkgutil, "get_loader"):
+    pkgutil.get_loader = importlib.util.find_spec
+
 import os
 from datetime import datetime
 from functools import wraps
 from bson import ObjectId
-
 from flask import (
     Flask, render_template, request, redirect, url_for, flash, jsonify, session
 )
@@ -16,18 +21,20 @@ app = Flask(__name__)
 app.config["MONGO_URI"] = os.environ.get("MONGO_URI", "mongodb://localhost:27017/toll_dashboard")
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "change_this_secret")
 
-socketio = SocketIO(app, cors_allowed_origins="*")
+# ✅ Use threading mode to fix Flask-SocketIO blocking issues
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading")
 mongo = PyMongo(app)
 
-# convenience collections
-users_col = mongo.db.users            # stores both normal & dev users
-vehicles_col = mongo.db.vehicles      # registered vehicles
-trips_col = mongo.db.trips            # travel history
-pings_col = mongo.db.live_pings       # live GPS pings (latest positions / stream)
+# MongoDB collections
+users_col = mongo.db.users
+vehicles_col = mongo.db.vehicles
+trips_col = mongo.db.trips
+pings_col = mongo.db.live_pings
 
-# ------------------ HELPERS ------------------
+
+# ---------------- HELPERS ----------------
 def to_str_id(doc):
-    """Convert MongoDB ObjectId fields to strings recursively."""
+    """Convert MongoDB ObjectIds to strings recursively."""
     if isinstance(doc, list):
         return [to_str_id(x) for x in doc]
     if isinstance(doc, dict):
@@ -44,14 +51,13 @@ def to_str_id(doc):
 
 
 def login_required(role=None):
+    """Decorator to protect routes."""
     def decorator(f):
         @wraps(f)
         def wrapped(*args, **kwargs):
             if "user_id" not in session:
                 flash("Please login first.", "warning")
                 return redirect(url_for("home"))
-
-            # convert back to ObjectId for queries
             try:
                 user_id = ObjectId(session["user_id"])
             except Exception:
@@ -60,7 +66,7 @@ def login_required(role=None):
 
             user = users_col.find_one({"_id": user_id})
             if not user:
-                flash("User not found. Please log in again.", "danger")
+                flash("User not found.", "danger")
                 return redirect(url_for("logout"))
 
             if role and user.get("role") != role:
@@ -71,13 +77,13 @@ def login_required(role=None):
     return decorator
 
 
-# ------------------ ROUTES ------------------
+# ---------------- ROUTES ----------------
 @app.route("/")
 def home():
     return render_template("home.html")
 
 
-# ---------- Register new 'normal' user ----------
+# ---------- Register ----------
 @app.route("/register", methods=["GET", "POST"])
 def register():
     if request.method == "POST":
@@ -85,55 +91,47 @@ def register():
         email = request.form.get("email")
         password = request.form.get("password")
         phone = request.form.get("phone")
-        role = "normal"
 
         if users_col.find_one({"email": email}):
             flash("Email already registered.", "danger")
             return redirect(url_for("register"))
 
-        user_doc = {
+        users_col.insert_one({
             "full_name": full_name,
             "email": email,
             "password_hash": generate_password_hash(password),
             "phone": phone,
-            "role": role,
+            "role": "normal",
             "created_at": datetime.utcnow()
-        }
-        users_col.insert_one(user_doc)
-        flash("Registered successfully. Please sign in.", "success")
+        })
+        flash("Registered successfully! Please log in.", "success")
         return redirect(url_for("home"))
     return render_template("register.html")
 
 
 # ---------- Login ----------
-# ---------- Login ----------
 @app.route("/login", methods=["POST"])
 def login():
     email = request.form.get("email")
     password = request.form.get("password")
-    role = request.form.get("role")  # "normal" or "developer" selected on form
+    role = request.form.get("role")
 
     user = users_col.find_one({"email": email})
     if not user or not check_password_hash(user["password_hash"], password):
         flash("Invalid credentials.", "danger")
         return redirect(url_for("home"))
 
-    # if login role selected is developer but user isn't developer, deny
     if role == "developer" and user.get("role") != "developer":
-        flash("You are not a developer user.", "danger")
+        flash("Unauthorized as developer.", "danger")
         return redirect(url_for("home"))
 
-    # ✅ FIX: store only string ID, not ObjectId
     session["user_id"] = str(user["_id"])
     session["email"] = user["email"]
     session["role"] = user.get("role", "normal")
 
     flash(f"Welcome, {user.get('full_name', user['email'])}!", "success")
+    return redirect(url_for("dev_dashboard" if user["role"] == "developer" else "user_dashboard"))
 
-    if session["role"] == "developer":
-        return redirect(url_for("dev_dashboard"))
-    else:
-        return redirect(url_for("user_dashboard"))
 
 # ---------- Logout ----------
 @app.route("/logout")
@@ -143,49 +141,88 @@ def logout():
     return redirect(url_for("home"))
 
 
-# ---------- Register vehicle ----------
+# ---------- Vehicle Registration ----------
+# ---------- Vehicle Registration ----------
 @app.route("/vehicle/register", methods=["GET", "POST"])
 @login_required()
 def register_vehicle():
+    user = users_col.find_one({"_id": ObjectId(session["user_id"])})
+
     if request.method == "POST":
-        vehicle_no = request.form.get("vehicle_no")
-        owner_name = request.form.get("owner_name")
-        phone = request.form.get("phone")
-        aadhar = request.form.get("aadhar")
+        vehicles = request.form.getlist("vehicle_no[]")
+        owners = request.form.getlist("owner_name[]")
+        aadhars = request.form.getlist("aadhar[]")
+        phone = user.get("phone")
 
-        if vehicles_col.find_one({"vehicle_no": vehicle_no}):
-            flash("Vehicle already registered.", "warning")
-            return redirect(url_for("register_vehicle"))
+        # ✅ Ensure phone number consistency for all vehicles of this user
+        for i, vehicle_no in enumerate(vehicles):
+            if not vehicle_no.strip():
+                continue
 
-        vehicle_doc = {
-            "vehicle_no": vehicle_no,
-            "owner_name": owner_name,
-            "phone": phone,
-            "aadhar": aadhar,
-            "balance": 0.0,
-            "created_at": datetime.utcnow()
-        }
-        vehicles_col.insert_one(vehicle_doc)
-        flash("Vehicle registered successfully.", "success")
+            # Prevent duplicate vehicle numbers
+            if vehicles_col.find_one({"vehicle_no": vehicle_no}):
+                flash(f"Vehicle {vehicle_no} already exists.", "warning")
+                continue
+
+            vehicles_col.insert_one({
+                "vehicle_no": vehicle_no.strip().upper(),
+                "owner_name": owners[i],
+                "phone": phone,  # keep same phone for all vehicles of this user
+                "aadhar": aadhars[i],
+                "balance": 0.0,
+                "created_at": datetime.utcnow()
+            })
+
+        flash("Vehicles registered successfully!", "success")
         return redirect(url_for("user_dashboard"))
-    return render_template("vehicle_register.html")
+
+    # ✅ FIXED: pass user to the template
+    return render_template("vehicle_register.html", user=user)
+
+
 
 
 # ---------- User Dashboard ----------
 @app.route("/user_dashboard")
 @login_required(role="normal")
 def user_dashboard():
-    user_id = ObjectId(session["user_id"])
-    user = users_col.find_one({"_id": user_id})
+    user = users_col.find_one({"_id": ObjectId(session["user_id"])})
     vehicles = list(vehicles_col.find({"phone": user.get("phone")}))
-    trips = list(trips_col.find({"vehicle_no": {"$in": [v["vehicle_no"] for v in vehicles]}}).sort("timestamp", -1))
+    vehicle_nos = [v["vehicle_no"] for v in vehicles]
+    trips = list(trips_col.find({"vehicle_no": {"$in": vehicle_nos}}).sort("timestamp", -1))
+
+    total_balance = sum(v.get("balance", 0.0) for v in vehicles)
+    total_distance = round(sum(t.get("total_distance", 0.0) for t in trips), 2)
+    total_highway = round(sum(t.get("highway_distance", 0.0) for t in trips), 2)
+    total_fare = round(sum(t.get("total_fare", 0.0) for t in trips), 2)
 
     return render_template(
         "user_dashboard.html",
-        user=to_str_id(user),
-        vehicles=to_str_id(vehicles),
-        trips=to_str_id(trips)
+        user=user,
+        vehicles=vehicles,
+        trips=trips,
+        total_balance=total_balance,
+        total_distance=total_distance,
+        total_highway=total_highway,
+        total_fare=total_fare
     )
+
+
+# ---------- Trip History ----------
+@app.route("/user/history/<vehicle_no>")
+@login_required()
+def user_history(vehicle_no):
+    trips_data = trips_col.find({"vehicle_no": vehicle_no}).sort("timestamp", -1)
+    trips = [{
+        "date": t["timestamp"].strftime("%Y-%m-%d"),
+        "time": t["timestamp"].strftime("%H:%M:%S"),
+        "start": t.get("start_location", "Unknown"),
+        "end": t.get("end_location", "Unknown"),
+        "total_distance": round(t.get("total_distance", 0), 2),
+        "highway_distance": round(t.get("highway_distance", 0), 2),
+        "fare": round(t.get("total_fare", 0), 2)
+    } for t in trips_data]
+    return render_template("user_history.html", vehicle_no=vehicle_no, trips=trips)
 
 
 # ---------- Developer Dashboard ----------
@@ -197,40 +234,77 @@ def dev_dashboard():
     total_highway_km = trips_col.aggregate([
         {"$group": {"_id": None, "sum": {"$sum": "$highway_distance"}}}
     ])
-    highway_sum = 0.0
     try:
-        highway_sum = next(total_highway_km)["sum"] or 0.0
+        highway_sum = next(total_highway_km)["sum"]
     except StopIteration:
-        pass
+        highway_sum = 0.0
 
     vehicles = list(vehicles_col.find().sort("created_at", -1))
     latest_pings = {p["vehicle_no"]: to_str_id(p) for p in pings_col.find()}
-
     return render_template(
         "dev_dashboard.html",
         total_vehicles=total_vehicles,
         total_trips=total_trips,
         highway_sum=round(highway_sum, 2),
         vehicles=to_str_id(vehicles),
-        latest_pings=latest_pings,
-        google_maps_key=os.environ.get("GOOGLE_MAPS_API_KEY", "")
+        latest_pings=latest_pings
     )
+# ---------- API: Per Vehicle Stats ----------
+@app.route("/api/vehicle_stats/<vehicle_no>")
+def api_vehicle_stats(vehicle_no):
+    vehicle = vehicles_col.find_one({"vehicle_no": vehicle_no})
+    if not vehicle:
+        return jsonify({"error": "Vehicle not found"}), 404
+
+    trips = list(trips_col.find({"vehicle_no": vehicle_no}))
+    total_distance = round(sum(t.get("total_distance", 0) for t in trips), 2)
+    total_highway = round(sum(t.get("highway_distance", 0) for t in trips), 2)
+    total_fare = round(sum(t.get("total_fare", 0) for t in trips), 2)
+
+    return jsonify({
+        "vehicle_no": vehicle_no,
+        "owner_name": vehicle.get("owner_name", ""),
+        "balance": round(vehicle.get("balance", 0), 2),
+        "total_trips": len(trips),
+        "total_distance": total_distance,
+        "total_highway": total_highway,
+        "total_fare": total_fare
+    })
 
 
-# ---------- API: Vehicles ----------
-@app.route("/api/vehicles")
-@login_required(role="developer")
-def api_vehicles():
-    vehicles = list(vehicles_col.find({}, {"_id": 0}))
-    return jsonify(vehicles)
+
+# ---------- API: Update Location ----------
+@app.route("/api/update_location", methods=["POST"])
+def api_update_location():
+    data = request.get_json()
+    vehicle_no = data.get("vehicle_no")
+    lat, lng = data.get("start_lat"), data.get("start_lng")
+    road_name = data.get("road_name", "")
+
+    if not vehicle_no or lat is None or lng is None:
+        return jsonify({"error": "Missing parameters"}), 400
+
+    ping = {
+        "vehicle_no": vehicle_no,
+        "lat": float(lat),
+        "lng": float(lng),
+        "road_name": road_name,
+        "timestamp": datetime.utcnow()
+    }
+    pings_col.update_one({"vehicle_no": vehicle_no}, {"$set": ping}, upsert=True)
+
+    # ✅ Emit live update to all browsers
+    socketio.emit("location_update", to_str_id(ping), broadcast=True)
+    print(f"📡 Emitted update for {vehicle_no}: {lat},{lng}")
+
+    return jsonify({"status": "success"}), 200
 
 
-# ---------- API: Track and Log ----------
+# ---------- API: Log Trip ----------
 @app.route("/api/track_and_log", methods=["POST"])
-@login_required()
 def api_track_and_log():
     data = request.get_json()
-    trip_doc = {
+    trip = {
         "vehicle_no": data.get("vehicle_no"),
         "start_location": data.get("start_location"),
         "end_location": data.get("end_location"),
@@ -239,85 +313,19 @@ def api_track_and_log():
         "total_fare": float(data.get("total_fare", 0)),
         "timestamp": datetime.utcnow()
     }
-    trips_col.insert_one(trip_doc)
-    return jsonify({"status": "ok", "trip": to_str_id(trip_doc)})
+    trips_col.insert_one(trip)
+    vehicles_col.update_one({"vehicle_no": data.get("vehicle_no")}, {"$inc": {"balance": -trip["total_fare"]}})
+    return jsonify({"status": "ok", "trip": to_str_id(trip)})
 
 
-# ---------- API: Update Location ----------
-@app.route("/api/update_location", methods=["POST"])
-def api_update_location():
-    data = request.get_json()
-    vehicle_no = data.get("vehicle_no")
-    lat = float(data.get("start_lat"))
-    lng = float(data.get("start_lng"))
-    road_name = data.get("road_name", "")
-    ping = {
-        "vehicle_no": vehicle_no,
-        "lat": lat,
-        "lng": lng,
-        "road_name": road_name,
-        "timestamp": datetime.utcnow()
-    }
-    pings_col.update_one({"vehicle_no": vehicle_no}, {"$set": ping}, upsert=True)
-    mongo.db.pings_log.insert_one(ping)
-
-    socketio.emit("location_update", {
-        "vehicle_no": vehicle_no,
-        "lat": lat,
-        "lng": lng,
-        "road_name": road_name,
-        "timestamp": ping["timestamp"].isoformat()
-    }, broadcast=True)
-
-    return jsonify({"status": "success"})
-
-
-# ---------- Vehicle History ----------
-@app.route("/history/<vehicle_no>")
-@login_required()
-def history(vehicle_no):
-    history = list(trips_col.find({"vehicle_no": vehicle_no}).sort("timestamp", -1))
-    return render_template("history.html", vehicle_no=vehicle_no, history=to_str_id(history))
-
-
-# ---------- Wallet Recharge ----------
-@app.route("/api/recharge", methods=["POST"])
-@login_required()
-def api_recharge():
-    vehicle_no = request.form.get("vehicle_no")
-    amount = float(request.form.get("amount", 0.0))
-    vehicles_col.update_one({"vehicle_no": vehicle_no}, {"$inc": {"balance": amount}})
-    flash("Recharged successfully.", "success")
-    return redirect(url_for("user_dashboard"))
-
-
-# ---------- Developer Creation ----------
-@app.route("/create_dev", methods=["POST"])
-def create_dev():
-    if users_col.count_documents({"role": "developer"}) > 0:
-        return "Developer already exists. Disabled.", 403
-
-    email = request.form.get("email")
-    password = request.form.get("password")
-    users_col.insert_one({
-        "full_name": "Dev User",
-        "email": email,
-        "password_hash": generate_password_hash(password),
-        "phone": request.form.get("phone", ""),
-        "role": "developer",
-        "created_at": datetime.utcnow()
-    })
-    return "Developer created."
-
-
-# ---------- SOCKETIO ----------
+# ---------- SOCKET.IO ----------
 @socketio.on("connect")
 def handle_connect():
-    print("Socket connected")
+    print("🟢 Client connected to Socket.IO")
 
 @socketio.on("disconnect")
 def handle_disconnect():
-    print("Socket disconnected")
+    print("🔴 Client disconnected")
 
 
 # ---------- RUN ----------
