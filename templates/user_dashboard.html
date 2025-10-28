@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block content %}
+<h3>Your Dashboard</h3>
+<div class="row">
+  <div class="col-md-6">
+    <h5>Your vehicles</h5>
+    <a class="btn btn-sm btn-primary mb-2" href="{{ url_for('register_vehicle') }}">Register vehicle</a>
+    {% if vehicles %}
+      <ul class="list-group">
+        {% for v in vehicles %}
+          <li class="list-group-item d-flex justify-content-between align-items-center">
+            {{ v.vehicle_no }}
+            <a href="{{ url_for('history', vehicle_no=v.vehicle_no) }}" class="btn btn-sm btn-outline-secondary">History</a>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p>No vehicles found.</p>
+    {% endif %}
+  </div>
+
+  <div class="col-md-6">
+    <h5>Trips</h5>
+    {% if trips %}
+      <table class="table">
+        <thead><tr><th>Vehicle</th><th>Distance</th><th>Highway</th><th>Fare</th><th>When</th></tr></thead>
+        <tbody>
+          {% for t in trips %}
+            <tr>
+              <td>{{ t.vehicle_no }}</td>
+              <td>{{ t.total_distance or '-' }}</td>
+              <td>{{ t.highway_distance or '-' }}</td>
+              <td>{{ t.total_fare or '-' }}</td>
+              <td>{{ t.timestamp.strftime("%Y-%m-%d %H:%M:%S") if t.timestamp else '-' }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p>No trips yet.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

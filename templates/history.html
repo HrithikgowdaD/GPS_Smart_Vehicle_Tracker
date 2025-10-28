@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block content %}
+<h3>History for {{ vehicle_no }}</h3>
+{% if history %}
+  <table class="table">
+    <thead><tr><th>When</th><th>Start</th><th>End</th><th>Total km</th><th>Highway km</th><th>Fare</th></tr></thead>
+    <tbody>
+      {% for t in history %}
+        <tr>
+          <td>{{ t.timestamp.strftime("%Y-%m-%d %H:%M:%S") if t.timestamp else '-' }}</td>
+          <td>{{ t.start_location or '-' }}</td>
+          <td>{{ t.end_location or '-' }}</td>
+          <td>{{ t.total_distance or '-' }}</td>
+          <td>{{ t.highway_distance or '-' }}</td>
+          <td>{{ t.total_fare or '-' }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% else %}
+  <p>No trips logged for this vehicle.</p>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block content %}
+<h3>Register Vehicle</h3>
+<form method="post">
+  <div class="mb-3">
+    <label class="form-label">Vehicle Number</label>
+    <input required class="form-control" name="vehicle_no">
+  </div>
+  <div class="mb-3">
+    <label class="form-label">Owner Name</label>
+    <input class="form-control" name="owner_name">
+  </div>
+  <div class="mb-3">
+    <label class="form-label">Phone</label>
+    <input class="form-control" name="phone">
+  </div>
+  <div class="mb-3">
+    <label class="form-label">Aadhar</label>
+    <input class="form-control" name="aadhar">
+  </div>
+  <button class="btn btn-success">Register Vehicle</button>
+</form>
+{% endblock %}
