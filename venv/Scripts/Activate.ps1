@@ -219,6 +219,11 @@ deactivate -nondestructive
 # that there is an activated venv.
 $env:VIRTUAL_ENV = $VenvDir
 
+<<<<<<< HEAD
+=======
+$env:VIRTUAL_ENV_PROMPT = $Prompt
+
+>>>>>>> SIDHU/dashboard-upgrade
 if (-not $Env:VIRTUAL_ENV_DISABLE_PROMPT) {
 
     Write-Verbose "Setting prompt to '$Prompt'"
@@ -233,7 +238,10 @@ if (-not $Env:VIRTUAL_ENV_DISABLE_PROMPT) {
         Write-Host -NoNewline -ForegroundColor Green "($_PYTHON_VENV_PROMPT_PREFIX) "
         _OLD_VIRTUAL_PROMPT
     }
+<<<<<<< HEAD
     $env:VIRTUAL_ENV_PROMPT = $Prompt
+=======
+>>>>>>> SIDHU/dashboard-upgrade
 }
 
 # Clear PYTHONHOME
@@ -245,6 +253,7 @@ if (Test-Path -Path Env:PYTHONHOME) {
 # Add the venv to the PATH
 Copy-Item -Path Env:PATH -Destination Env:_OLD_VIRTUAL_PATH
 $Env:PATH = "$VenvExecDir$([System.IO.Path]::PathSeparator)$Env:PATH"
+<<<<<<< HEAD
 
 # SIG # Begin signature block
 # MIIvIwYJKoZIhvcNAQcCoIIvFDCCLxACAQExDzANBglghkgBZQMEAgEFADB5Bgor
@@ -500,3 +509,5 @@ $Env:PATH = "$VenvExecDir$([System.IO.Path]::PathSeparator)$Env:PATH"
 # sSSmcYwdx1YQCr48HEjcmGrj5sAzzg4U4WU/GrLWz2sSRmh5rKcDAa0ewfYi13Z2
 # a/cdr8Or2RQ5ZSQ8OHgr3GBw7koDWR8=
 # SIG # End signature block
+=======
+>>>>>>> SIDHU/dashboard-upgrade
