@@ -1,0 +1,32 @@
+# -----------------------
+# Python + Flask Project
+# -----------------------
+
+# Byte-compiled / cache files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+venv/
+
+# Environment variables
+.env
+instance/
+
+# Logs and database files
+*.log
+*.csv
+*.sqlite3
+
+# VS Code
+.vscode/
+
+# Flask specific
+*.db
+*.pid
+
+# PyInstaller
+build/
+dist/
+*.spec
