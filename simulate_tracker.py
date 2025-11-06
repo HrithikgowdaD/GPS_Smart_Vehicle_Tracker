@@ -1,127 +1,87 @@
 # simulate_tracker.py
-import os, time, requests, math, sys
-from random import uniform
-from pymongo import MongoClient
-from datetime import datetime
+import time
+import requests
+from geopy.distance import geodesic
 
-# =============== CONFIGURATION ===============
-SERVER_URL = "http://127.0.0.1:5000"
-FARE_PER_KM = 2.5  # ₹ per km
-DB_NAME = "gps_tracker"
+# MongoDB coordinates: Bengaluru → Mangalore (for testing)
+START = (12.9716, 77.5946)
+END = (22.2604, 84.8536)
 
-# MongoDB connection
-try:
-    client = MongoClient("mongodb://localhost:27017/")
-    db = client[DB_NAME]
-    print("✅ Connected to MongoDB")
-except Exception as e:
-    print(f"❌ MongoDB connection failed: {e}")
-    exit(1)
+API_URL = "http://127.0.0.1:5000/api/update_location"   # Flask endpoint
+LOG_URL = "http://127.0.0.1:5000/api/track_and_log"     # Final trip log endpoint
 
-# =============== UTILITY FUNCTIONS ===============
-def haversine(lat1, lon1, lat2, lon2):
-    """Compute distance between two GPS points in km"""
-    R = 6371.0
-    dlat, dlon = math.radians(lat2 - lat1), math.radians(lon2 - lon1)
-    a = math.sin(dlat / 2)**2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlon / 2)**2
-    return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
-def is_highway(lat, lon):
-    """Check if a given coordinate is on a highway"""
-    url = f"https://nominatim.openstreetmap.org/reverse?lat={lat}&lon={lon}&zoom=14&format=json"
-    headers = {'User-Agent': 'SmartTollSystem/1.0'}
-    try:
-        r = requests.get(url, headers=headers, timeout=5)
-        data = r.json()
-        road_name = data.get('address', {}).get('road', '') or ''
-        return any(word in road_name.lower() for word in ["highway", "expressway", "bypass", "nh", "ah"])
-    except Exception:
-        return False
+def interpolate_coords(start, end, steps):
+    """Generate intermediate coordinates from start → end."""
+    lat1, lon1 = start
+    lat2, lon2 = end
+    return [
+        (
+            lat1 + (lat2 - lat1) * i / steps,
+            lon1 + (lon2 - lon1) * i / steps
+        )
+        for i in range(steps + 1)
+    ]
 
-def get_location_name(lat, lon):
-    """Get readable address from lat/lon"""
-    try:
-        url = f"https://nominatim.openstreetmap.org/reverse?lat={lat}&lon={lon}&format=json"
-        r = requests.get(url, headers={"User-Agent": "vehicle-simulator"})
-        data = r.json()
-        return data.get("display_name", f"{lat}, {lon}")
-    except:
-        return f"{lat}, {lon}"
 
-# =============== MAIN SIMULATION ===============
-def simulate_trip(vehicle_no):
-    start = (12.9200, 77.5000)  # Kengeri, Bengaluru
-    end = (12.4569, 75.9626)    # Kushalnagar
-    steps = 20
-    lat_step = (end[0] - start[0]) / steps
-    lon_step = (end[1] - start[1]) / steps
+def simulate_vehicle(vehicle_no, total_steps=20, delay=2):
+    """Simulate movement and send updates to Flask backend."""
+    print(f"✅ Connected to MongoDB")
+    print(f"🚗 Simulating {vehicle_no} from {START} → {END} ...")
 
-    total_distance = 0
-    highway_distance = 0
-    prev = start
+    coords = interpolate_coords(START, END, total_steps)
+    total_distance = 0.0
+    highway_distance = 0.0
+    total_fare = 0.0
 
-    print(f"🚗 Simulating {vehicle_no} from {start} → {end} ...")
+    for i in range(1, len(coords)):
+        start = coords[i - 1]
+        end = coords[i]
+        segment_km = geodesic(start, end).km
+        total_distance += segment_km
 
-    for i in range(steps + 1):
-        lat = start[0] + i * lat_step + uniform(-0.002, 0.002)
-        lon = start[1] + i * lon_step + uniform(-0.002, 0.002)
-        dist = haversine(prev[0], prev[1], lat, lon)
-        total_distance += dist
-
-        # Detect if vehicle is on highway
-        on_highway = is_highway(lat, lon)
-        if on_highway:
-            highway_distance += dist
-            print(f"✅ On highway ({highway_distance:.2f} km total)")
+        # Simple logic: if step index divisible by 3 → Highway
+        if i % 3 == 0:
+            road_name = "National Highway"
+            highway_distance += segment_km
+            total_fare += segment_km * 2.5  # ₹2.5/km
         else:
-            print(f"🛣️ Local road ({total_distance:.2f} km total)")
+            road_name = "Local Road"
+            total_fare += segment_km * 1.2  # ₹1.2/km
 
-        # Send live update to dashboard backend
+        print(f"🛣️ {road_name} ({total_distance:.2f} km total)")
+
+        # 🔹 Send live update to Flask API
+        payload = {
+            "vehicle_no": vehicle_no,
+            "lat": end[0],
+            "lng": end[1],
+            "road_name": road_name
+        }
+
         try:
-            requests.post(f"{SERVER_URL}/api/update_location", json={
-                "vehicle_no": vehicle_no,
-                "lat": lat,
-                "lng": lon,
-                "road_name": "highway" if on_highway else "local"
-            })
+            requests.post(API_URL, json=payload, timeout=5)
         except Exception as e:
-            print(f"⚠️ Ping failed: {e}")
+            print("❌ Failed to send:", e)
 
-        prev = (lat, lon)
-        time.sleep(1)
+        time.sleep(delay)
 
-    # ======= After trip ends =======
-    total_fare = round(highway_distance * FARE_PER_KM, 2)
-
-    # Get readable location names
-    start_location = get_location_name(start[0], start[1])
-    end_location = get_location_name(end[0], end[1])
-
-    # ======= Log trip in MongoDB =======
-    trip_record = {
+    # ✅ Log the completed trip at the end
+    trip_summary = {
         "vehicle_no": vehicle_no,
-        "date": datetime.now().strftime("%Y-%m-%d"),
-        "time": datetime.now().strftime("%H:%M:%S"),
-        "start_location": start_location,
-        "end_location": end_location,
-        "total_distance": round(total_distance, 2),
-        "highway_distance": round(highway_distance, 2),
-        "total_fare": total_fare
+        "start_location": f"{START}",
+        "end_location": f"{END}",
+        "total_distance": total_distance,
+        "highway_distance": highway_distance,
+        "total_fare": total_fare,
     }
-    db.trips.insert_one(trip_record)
-    print(f"✅ Trip logged to MongoDB: {trip_record}")
-
-    # ======= Also send to Flask backend (optional) =======
-    try:
-        requests.post(f"{SERVER_URL}/api/track_and_log", json=trip_record)
-        print(f"💰 Trip ended: {highway_distance:.2f} km on highway → ₹{total_fare}")
-    except Exception as e:
-        print(f"❌ Failed to log trip via API: {e}")
+    requests.post(LOG_URL, json=trip_summary)
+    print("✅ Trip logged successfully!")
 
 
-# =============== MAIN ENTRY ===============
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        print("Usage: python simulate_tracker.py <vehicle_no>")
-        exit(1)
-    simulate_trip(sys.argv[1])
+    import sys
+    if len(sys.argv) != 2:
+        print("Usage: python simulate_tracker.py <VEHICLE_NO>")
+    else:
+        simulate_vehicle(sys.argv[1])

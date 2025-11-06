@@ -1,5 +1,5 @@
 # dashboard_app.py
-# ✅ Smart Toll System Dashboard with MongoDB + Socket.IO Live Map
+# ✅ Smart Toll System Dashboard with MongoDB + Socket.IO Live Map + Wallet System + Multi-Vehicle Support
 
 import pkgutil, importlib.util
 if not hasattr(pkgutil, "get_loader"):
@@ -14,14 +14,13 @@ from flask import (
 )
 from flask_pymongo import PyMongo
 from werkzeug.security import generate_password_hash, check_password_hash
-from flask_socketio import SocketIO, emit
+from flask_socketio import SocketIO
 
 # ---------------- CONFIG ----------------
 app = Flask(__name__)
 app.config["MONGO_URI"] = os.environ.get("MONGO_URI", "mongodb://localhost:27017/toll_dashboard")
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "change_this_secret")
 
-# ✅ Use threading mode to fix Flask-SocketIO blocking issues
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading")
 mongo = PyMongo(app)
 
@@ -31,6 +30,8 @@ vehicles_col = mongo.db.vehicles
 trips_col = mongo.db.trips
 pings_col = mongo.db.live_pings
 
+# ✅ Google Maps API Key
+GOOGLE_MAPS_API_KEY = "AIzaSyDwHmT9VfKtdxVyvlO9FUCzbi87tpBWF6E"
 
 # ---------------- HELPERS ----------------
 def to_str_id(doc):
@@ -141,11 +142,11 @@ def logout():
     return redirect(url_for("home"))
 
 
-# ---------- Vehicle Registration ----------
-# ---------- Vehicle Registration ----------
+# ---------- Vehicle Registration (Multiple Vehicles) ----------
 @app.route("/vehicle/register", methods=["GET", "POST"])
 @login_required()
 def register_vehicle():
+    """Allow user to register multiple vehicles with same phone."""
     user = users_col.find_one({"_id": ObjectId(session["user_id"])})
 
     if request.method == "POST":
@@ -154,32 +155,69 @@ def register_vehicle():
         aadhars = request.form.getlist("aadhar[]")
         phone = user.get("phone")
 
-        # ✅ Ensure phone number consistency for all vehicles of this user
-        for i, vehicle_no in enumerate(vehicles):
-            if not vehicle_no.strip():
-                continue
+        registered_count = 0
+        skipped = []
 
-            # Prevent duplicate vehicle numbers
+        for i, vehicle_no in enumerate(vehicles):
+            vehicle_no = vehicle_no.strip().upper()
+            if not vehicle_no:
+                continue
             if vehicles_col.find_one({"vehicle_no": vehicle_no}):
-                flash(f"Vehicle {vehicle_no} already exists.", "warning")
+                skipped.append(vehicle_no)
                 continue
 
             vehicles_col.insert_one({
-                "vehicle_no": vehicle_no.strip().upper(),
+                "vehicle_no": vehicle_no,
                 "owner_name": owners[i],
-                "phone": phone,  # keep same phone for all vehicles of this user
                 "aadhar": aadhars[i],
+                "phone": phone,
                 "balance": 0.0,
                 "created_at": datetime.utcnow()
             })
+            registered_count += 1
 
-        flash("Vehicles registered successfully!", "success")
+        if registered_count > 0:
+            flash(f"{registered_count} vehicle(s) registered successfully!", "success")
+        if skipped:
+            flash(f"Skipped existing vehicle(s): {', '.join(skipped)}", "warning")
+
         return redirect(url_for("user_dashboard"))
 
-    # ✅ FIXED: pass user to the template
-    return render_template("vehicle_register.html", user=user)
+    vehicles = list(vehicles_col.find({"phone": user.get("phone")}))
+    return render_template("vehicle_register.html", user=user, vehicles=vehicles)
 
 
+# ---------- Wallet Top-Up ----------
+@app.route("/wallet/add", methods=["GET"])
+@login_required(role="normal")
+def wallet_add():
+    user = users_col.find_one({"_id": ObjectId(session["user_id"])})
+    vehicles = list(vehicles_col.find({"phone": user.get("phone")}))
+    return render_template("wallet_add.html", user=user, vehicles=vehicles)
+
+
+@app.route("/wallet/submit", methods=["POST"])
+@login_required(role="normal")
+def wallet_submit():
+    amount = float(request.form.get("amount", 0))
+    vehicle_no = request.form.get("vehicle_no")
+    payment_mode = request.form.get("payment_mode")
+
+    if amount <= 0 or not vehicle_no:
+        flash("Please enter a valid amount and select a vehicle.", "warning")
+        return redirect(url_for("wallet_add"))
+
+    result = vehicles_col.update_one(
+        {"vehicle_no": vehicle_no},
+        {"$inc": {"balance": amount}}
+    )
+
+    if result.modified_count == 1:
+        flash(f"₹{amount:.2f} added successfully via {payment_mode}!", "success")
+    else:
+        flash("Failed to add balance. Please try again.", "danger")
+
+    return redirect(url_for("user_dashboard"))
 
 
 # ---------- User Dashboard ----------
@@ -187,6 +225,7 @@ def register_vehicle():
 @login_required(role="normal")
 def user_dashboard():
     user = users_col.find_one({"_id": ObjectId(session["user_id"])})
+
     vehicles = list(vehicles_col.find({"phone": user.get("phone")}))
     vehicle_nos = [v["vehicle_no"] for v in vehicles]
     trips = list(trips_col.find({"vehicle_no": {"$in": vehicle_nos}}).sort("timestamp", -1))
@@ -204,25 +243,49 @@ def user_dashboard():
         total_balance=total_balance,
         total_distance=total_distance,
         total_highway=total_highway,
-        total_fare=total_fare
+        total_fare=total_fare,
+        google_api_key=GOOGLE_MAPS_API_KEY
     )
 
 
 # ---------- Trip History ----------
-@app.route("/user/history/<vehicle_no>")
+@app.route("/user/history/<vehicle_no>", endpoint="user_history")
 @login_required()
 def user_history(vehicle_no):
+    """Display trip history for a specific vehicle, including wallet and stats."""
+    user = users_col.find_one({"_id": ObjectId(session["user_id"])})
+    vehicles = list(vehicles_col.find({"phone": user.get("phone")}))
+
+    # Get all trips for this vehicle
     trips_data = trips_col.find({"vehicle_no": vehicle_no}).sort("timestamp", -1)
-    trips = [{
-        "date": t["timestamp"].strftime("%Y-%m-%d"),
-        "time": t["timestamp"].strftime("%H:%M:%S"),
-        "start": t.get("start_location", "Unknown"),
-        "end": t.get("end_location", "Unknown"),
-        "total_distance": round(t.get("total_distance", 0), 2),
-        "highway_distance": round(t.get("highway_distance", 0), 2),
-        "fare": round(t.get("total_fare", 0), 2)
-    } for t in trips_data]
-    return render_template("user_history.html", vehicle_no=vehicle_no, trips=trips)
+    trips = [
+        {
+            "date": t["timestamp"].strftime("%Y-%m-%d"),
+            "time": t["timestamp"].strftime("%H:%M:%S"),
+            "start": t.get("start_location", "Unknown"),
+            "end": t.get("end_location", "Unknown"),
+            "total_distance": round(t.get("total_distance", 0), 2),
+            "highway_distance": round(t.get("highway_distance", 0), 2),
+            "fare": round(t.get("total_fare", 0), 2),
+        }
+        for t in trips_data
+    ]
+
+    # Compute wallet summary
+    total_balance = sum(v.get("balance", 0.0) for v in vehicles)
+    total_distance = round(sum(t.get("total_distance", 0.0) for t in trips), 2)
+    total_fare = round(sum(t.get("fare", 0.0) for t in trips), 2)
+
+    return render_template(
+        "user_history.html",
+        user=user,
+        vehicle_no=vehicle_no,
+        trips=trips,
+        total_balance=total_balance,
+        total_distance=total_distance,
+        total_fare=total_fare,
+        google_api_key=GOOGLE_MAPS_API_KEY,
+    )
 
 
 # ---------- Developer Dashboard ----------
@@ -231,54 +294,33 @@ def user_history(vehicle_no):
 def dev_dashboard():
     total_vehicles = vehicles_col.count_documents({})
     total_trips = trips_col.count_documents({})
-    total_highway_km = trips_col.aggregate([
-        {"$group": {"_id": None, "sum": {"$sum": "$highway_distance"}}}
-    ])
+    agg = trips_col.aggregate([{"$group": {"_id": None, "sum": {"$sum": "$highway_distance"}}}])
     try:
-        highway_sum = next(total_highway_km)["sum"]
+        highway_sum = next(agg)["sum"]
     except StopIteration:
         highway_sum = 0.0
 
     vehicles = list(vehicles_col.find().sort("created_at", -1))
     latest_pings = {p["vehicle_no"]: to_str_id(p) for p in pings_col.find()}
+
     return render_template(
         "dev_dashboard.html",
         total_vehicles=total_vehicles,
         total_trips=total_trips,
         highway_sum=round(highway_sum, 2),
         vehicles=to_str_id(vehicles),
-        latest_pings=latest_pings
+        latest_pings=latest_pings,
+        google_api_key=GOOGLE_MAPS_API_KEY
     )
-# ---------- API: Per Vehicle Stats ----------
-@app.route("/api/vehicle_stats/<vehicle_no>")
-def api_vehicle_stats(vehicle_no):
-    vehicle = vehicles_col.find_one({"vehicle_no": vehicle_no})
-    if not vehicle:
-        return jsonify({"error": "Vehicle not found"}), 404
-
-    trips = list(trips_col.find({"vehicle_no": vehicle_no}))
-    total_distance = round(sum(t.get("total_distance", 0) for t in trips), 2)
-    total_highway = round(sum(t.get("highway_distance", 0) for t in trips), 2)
-    total_fare = round(sum(t.get("total_fare", 0) for t in trips), 2)
-
-    return jsonify({
-        "vehicle_no": vehicle_no,
-        "owner_name": vehicle.get("owner_name", ""),
-        "balance": round(vehicle.get("balance", 0), 2),
-        "total_trips": len(trips),
-        "total_distance": total_distance,
-        "total_highway": total_highway,
-        "total_fare": total_fare
-    })
 
 
-
-# ---------- API: Update Location ----------
+# ---------- API ----------
 @app.route("/api/update_location", methods=["POST"])
 def api_update_location():
     data = request.get_json()
     vehicle_no = data.get("vehicle_no")
-    lat, lng = data.get("start_lat"), data.get("start_lng")
+    lat = data.get("lat")
+    lng = data.get("lng")
     road_name = data.get("road_name", "")
 
     if not vehicle_no or lat is None or lng is None:
@@ -289,18 +331,23 @@ def api_update_location():
         "lat": float(lat),
         "lng": float(lng),
         "road_name": road_name,
-        "timestamp": datetime.utcnow()
+        "timestamp": datetime.utcnow().isoformat()
     }
+
+    # update latest ping in MongoDB
     pings_col.update_one({"vehicle_no": vehicle_no}, {"$set": ping}, upsert=True)
 
-    # ✅ Emit live update to all browsers
-    socketio.emit("location_update", to_str_id(ping), broadcast=True)
-    print(f"📡 Emitted update for {vehicle_no}: {lat},{lng}")
+    # emit live update to all connected clients
+    socketio.emit("location_update", ping)
+
+    print(f"📡 Emitted update for {vehicle_no}: {lat}, {lng} ({road_name})")
+
+    return jsonify({"status": "success"}), 200
 
     return jsonify({"status": "success"}), 200
 
 
-# ---------- API: Log Trip ----------
+
 @app.route("/api/track_and_log", methods=["POST"])
 def api_track_and_log():
     data = request.get_json()
@@ -313,8 +360,14 @@ def api_track_and_log():
         "total_fare": float(data.get("total_fare", 0)),
         "timestamp": datetime.utcnow()
     }
-    trips_col.insert_one(trip)
-    vehicles_col.update_one({"vehicle_no": data.get("vehicle_no")}, {"$inc": {"balance": -trip["total_fare"]}})
+
+    inserted = trips_col.insert_one(trip)
+    trip["_id"] = str(inserted.inserted_id)
+    vehicles_col.update_one(
+        {"vehicle_no": data.get("vehicle_no")},
+        {"$inc": {"balance": -trip["total_fare"]}}
+    )
+    print(f"✅ Logged trip for {data.get('vehicle_no')} — Fare ₹{trip['total_fare']}")
     return jsonify({"status": "ok", "trip": to_str_id(trip)})
 
 

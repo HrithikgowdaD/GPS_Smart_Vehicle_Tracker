@@ -4,87 +4,114 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Trip History - {{ vehicle_no }}</title>
+
+  <!-- Bootstrap -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
   <style>
     body {
-      background-color: #f8f9fa;
+      background: linear-gradient(135deg, #a5b4fc, #c084fc);
+      min-height: 100vh;
+      font-family: 'Poppins', sans-serif;
+      color: #1e293b;
     }
+
     .card {
+      border-radius: 15px;
+      background: rgba(255,255,255,0.9);
+      box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+    }
+
+    table {
+      background: white;
       border-radius: 10px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      overflow: hidden;
     }
+
+    th {
+      background: #6366f1 !important;
+      color: white !important;
+    }
+
     #mapModal .modal-dialog {
-      max-width: 800px;
+      max-width: 850px;
     }
+
     #tripMap {
-      height: 400px;
+      height: 420px;
       width: 100%;
       border-radius: 10px;
+    }
+
+    .btn-outline-primary {
+      border-color: #6366f1;
+      color: #6366f1;
+    }
+
+    .btn-outline-primary:hover {
+      background-color: #6366f1;
+      color: white;
     }
   </style>
 </head>
 
 <body>
-  <div class="container mt-4">
+  <div class="container mt-5">
     <div class="card p-4">
-      <h4 class="text-center mb-3">📜 Trip History for <b>{{ vehicle_no }}</b></h4>
+      <h3 class="fw-bold text-center mb-4 text-primary">📜 Trip History — {{ vehicle_no }}</h3>
+
       {% if trips %}
-        <div class="table-responsive">
-          <table class="table table-bordered table-striped align-middle">
-            <thead class="table-primary text-center">
-              <tr>
-                <th>Date</th>
-                <th>Day</th>
-                <th>Time</th>
-                <th>Start Location</th>
-                <th>End Location</th>
-                <th>Start (Lat, Lng)</th>
-                <th>End (Lat, Lng)</th>
-                <th>Total Distance (km)</th>
-                <th>Fare (₹)</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody class="text-center">
-              {% for t in trips %}
-              <tr>
-                <td>{{ t.date }} {{ t.month }} {{ t.year }}</td>
-                <td>{{ t.day }}</td>
-                <td>{{ t.time }}</td>
-                <td>{{ t.start_location }}</td>
-                <td>{{ t.end_location }}</td>
-                <td>{{ t.start_lat }}, {{ t.start_lng }}</td>
-                <td>{{ t.end_lat }}, {{ t.end_lng }}</td>
-                <td>{{ t.total_distance }}</td>
-                <td>₹{{ t.fare }}</td>
-                <td>
-                  <button class="btn btn-sm btn-outline-primary" 
-                          onclick="showOnMap('{{ t.start_lat }}','{{ t.start_lng }}','{{ t.end_lat }}','{{ t.end_lng }}','{{ t.start_location }}','{{ t.end_location }}')">
-                    View on Map
-                  </button>
-                </td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
+      <div class="table-responsive">
+        <table class="table table-striped align-middle text-center">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Time</th>
+              <th>Start Location</th>
+              <th>End Location</th>
+              <th>Total Distance (km)</th>
+              <th>Highway Distance (km)</th>
+              <th>Fare (₹)</th>
+              <th>Map</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for t in trips %}
+            <tr>
+              <td>{{ t.date }}</td>
+              <td>{{ t.time }}</td>
+              <td>{{ t.start }}</td>
+              <td>{{ t.end }}</td>
+              <td>{{ t.total_distance }}</td>
+              <td>{{ t.highway_distance }}</td>
+              <td>₹{{ t.fare }}</td>
+              <td>
+                <button class="btn btn-sm btn-outline-primary"
+                        onclick="showOnMap('{{ t.start }}', '{{ t.end }}')">
+                  View
+                </button>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
       {% else %}
-        <p class="text-center">No trip history available for this vehicle.</p>
+      <p class="text-center">No trip history available for this vehicle.</p>
       {% endif %}
-      <div class="text-center mt-3">
+
+      <div class="text-center mt-4">
         <a href="{{ url_for('user_dashboard') }}" class="btn btn-outline-primary">← Back to Dashboard</a>
       </div>
     </div>
   </div>
 
-  <!-- Modal for Map -->
+  <!-- Map Modal -->
   <div class="modal fade" id="mapModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered modal-lg">
       <div class="modal-content">
         <div class="modal-header">
-          <h5 class="modal-title">Trip Route</h5>
+          <h5 class="modal-title fw-bold">Trip Route</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
         </div>
         <div class="modal-body">
@@ -94,43 +121,61 @@
     </div>
   </div>
 
+  <!-- JS -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
+  <!-- ✅ Google Maps + Directions -->
   <script>
-    let mapInstance, routeLayer;
+    let map, directionsService, directionsRenderer;
 
-    function showOnMap(startLat, startLng, endLat, endLng, startName, endName) {
+    function showOnMap(startName, endName) {
       const modal = new bootstrap.Modal(document.getElementById('mapModal'));
       modal.show();
 
+      // Demo coordinates (replace with actual lat/lng if stored)
+      const start = { lat: 12.9716, lng: 77.5946 }; // Bengaluru
+      const end = { lat: 12.9121, lng: 74.8560 };   // Mangalore
+
       setTimeout(() => {
-        if (!mapInstance) {
-          mapInstance = L.map('tripMap').setView([startLat, startLng], 7);
-          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            maxZoom: 19,
-            attribution: '&copy; OpenStreetMap contributors'
-          }).addTo(mapInstance);
+        // Initialize map once
+        if (!map) {
+          map = new google.maps.Map(document.getElementById("tripMap"), {
+            zoom: 7,
+            center: start,
+            mapTypeId: "roadmap"
+          });
+
+          directionsService = new google.maps.DirectionsService();
+          directionsRenderer = new google.maps.DirectionsRenderer({
+            map: map,
+            suppressMarkers: false,
+            polylineOptions: {
+              strokeColor: "#2563eb",
+              strokeWeight: 5
+            }
+          });
         }
 
-        // Clear old route if exists
-        if (routeLayer) {
-          mapInstance.removeLayer(routeLayer);
-        }
+        // Calculate route via Google Directions API
+        const request = {
+          origin: start,
+          destination: end,
+          travelMode: google.maps.TravelMode.DRIVING
+        };
 
-        const start = [parseFloat(startLat), parseFloat(startLng)];
-        const end = [parseFloat(endLat), parseFloat(endLng)];
-
-        // Add markers
-        L.marker(start).addTo(mapInstance).bindPopup(`Start: ${startName}`).openPopup();
-        L.marker(end).addTo(mapInstance).bindPopup(`End: ${endName}`);
-
-        // Draw line between them
-        routeLayer = L.polyline([start, end], { color: 'blue', weight: 5 }).addTo(mapInstance);
-
-        mapInstance.fitBounds(routeLayer.getBounds());
-      }, 500);
+        directionsService.route(request, (result, status) => {
+          if (status === "OK") {
+            directionsRenderer.setDirections(result);
+          } else {
+            console.error("Directions request failed:", status);
+            alert("Unable to display route on map. Please try again.");
+          }
+        });
+      }, 300);
     }
   </script>
+
+  <!-- ✅ Google Maps API with Directions -->
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDwHmT9VfKtdxVyvlO9FUCzbi87tpBWF6E"></script>
 </body>
 </html>

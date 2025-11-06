@@ -3,82 +3,143 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Register Vehicle(s)</title>
+  <title>Register Vehicles — Smart Toll</title>
+
+  <!-- Bootstrap -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
   <style>
-    body { background-color: #f8f9fa; }
-    .vehicle-box {
-      background: #fff; padding: 15px; border-radius: 8px;
-      margin-bottom: 15px; box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    body {
+      background: linear-gradient(135deg, #c084fc, #a5b4fc);
+      min-height: 100vh;
+      font-family: 'Poppins', sans-serif;
+      color: #1e293b;
+    }
+    .card {
+      background: rgba(255,255,255,0.9);
+      border-radius: 15px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      padding: 25px;
+    }
+    .btn-add {
+      background-color: #4f46e5;
+      color: white;
+      border: none;
+    }
+    .btn-add:hover {
+      background-color: #4338ca;
+    }
+    .btn-submit {
+      background-color: #22c55e;
+      color: white;
+      border: none;
+    }
+    .btn-submit:hover {
+      background-color: #16a34a;
+    }
+    .form-label {
+      font-weight: 600;
+    }
+    .navbar {
+      background: linear-gradient(90deg, #6366f1, #8b5cf6);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
     }
   </style>
 </head>
+
 <body>
-  <nav class="navbar navbar-dark bg-dark px-3">
-    <a class="navbar-brand" href="#">🚗 Vehicle Registration</a>
+  <!-- Navbar -->
+  <nav class="navbar navbar-dark px-3">
+    <a class="navbar-brand fw-bold" href="#">🚗 Smart Toll — Register Vehicle</a>
     <div class="ms-auto">
-      <a href="/user_dashboard" class="btn btn-outline-light btn-sm">Dashboard</a>
+      <a href="{{ url_for('user_dashboard') }}" class="btn btn-outline-light btn-sm">⬅ Back to Dashboard</a>
     </div>
   </nav>
 
-  <div class="container mt-4">
-    <h4>Register Your Vehicles</h4>
-    <p class="text-muted">All vehicles will be linked to your registered phone number.</p>
+  <div class="container mt-5">
+    <div class="card">
+      <h3 class="text-center mb-3 fw-bold">Register Your Vehicle(s)</h3>
+      <p class="text-center text-muted mb-4">You can register multiple vehicles under your phone number.</p>
 
-    <form method="POST" action="/vehicle/register" id="vehicleForm">
-      <div class="mb-3">
-        <label class="form-label">Registered Phone Number</label>
-        <input type="text" class="form-control" value="{{ user.phone }}" readonly>
-      </div>
-
-      <div id="vehicleContainer">
-        <div class="vehicle-box">
-          <div class="row g-2">
+      <form method="POST" id="vehicleForm">
+        <div id="vehicleContainer">
+          <div class="row g-3 vehicle-entry mb-3">
             <div class="col-md-4">
               <label class="form-label">Vehicle Number</label>
-              <input type="text" class="form-control" name="vehicle_no[]" placeholder="KA01AB1234" required>
+              <input type="text" name="vehicle_no[]" class="form-control" placeholder="e.g., KA50MC1234" pattern="[A-Z]{2}[0-9]{2}[A-Z]{1,2}[0-9]{4}" required>
+              <div class="form-text text-muted">Format: KA50MC1234</div>
             </div>
             <div class="col-md-4">
               <label class="form-label">Owner Name</label>
-              <input type="text" class="form-control" name="owner_name[]" placeholder="Owner Name" required>
+              <input type="text" name="owner_name[]" class="form-control" placeholder="Owner Full Name" required>
             </div>
             <div class="col-md-4">
               <label class="form-label">Aadhar Number</label>
-              <input type="text" class="form-control" name="aadhar[]" placeholder="XXXX-XXXX-XXXX">
+              <input type="text" name="aadhar[]" class="form-control" placeholder="12-digit Aadhar" pattern="[0-9]{12}" required>
             </div>
           </div>
         </div>
-      </div>
 
-      <button type="button" class="btn btn-outline-primary mt-2" id="addVehicleBtn">➕ Add Another Vehicle</button><br>
-      <button type="submit" class="btn btn-success mt-3">Register Vehicle(s)</button>
-    </form>
+        <div class="d-flex justify-content-between align-items-center mt-3">
+          <button type="button" class="btn btn-add btn-sm" onclick="addVehicleRow()">➕ Add Another Vehicle</button>
+          <button type="submit" class="btn btn-submit btn-sm">✅ Register Vehicle(s)</button>
+        </div>
+      </form>
+
+      {% if vehicles %}
+      <hr class="my-4">
+      <h5 class="fw-bold mb-3">Registered Vehicles</h5>
+      <div class="table-responsive">
+        <table class="table table-bordered align-middle">
+          <thead class="table-light">
+            <tr>
+              <th>Vehicle No</th>
+              <th>Owner</th>
+              <th>Balance (₹)</th>
+              <th>Registered On</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for v in vehicles %}
+            <tr>
+              <td>{{ v.vehicle_no }}</td>
+              <td>{{ v.owner_name }}</td>
+              <td>₹{{ "%.2f"|format(v.balance) }}</td>
+              <td>{{ v.created_at.strftime("%Y-%m-%d %H:%M:%S") }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% endif %}
+    </div>
   </div>
 
+  <!-- JavaScript -->
   <script>
-    // Add another vehicle form block
-    document.getElementById("addVehicleBtn").addEventListener("click", () => {
-      const container = document.getElementById("vehicleContainer");
-      const div = document.createElement("div");
-      div.classList.add("vehicle-box");
-      div.innerHTML = `
-        <div class="row g-2">
-          <div class="col-md-4">
-            <label class="form-label">Vehicle Number</label>
-            <input type="text" class="form-control" name="vehicle_no[]" placeholder="KA02CD5678" required>
-          </div>
-          <div class="col-md-4">
-            <label class="form-label">Owner Name</label>
-            <input type="text" class="form-control" name="owner_name[]" placeholder="Owner Name" required>
-          </div>
-          <div class="col-md-4">
-            <label class="form-label">Aadhar Number</label>
-            <input type="text" class="form-control" name="aadhar[]" placeholder="XXXX-XXXX-XXXX">
-          </div>
+    function addVehicleRow() {
+      const container = document.getElementById('vehicleContainer');
+      const row = document.createElement('div');
+      row.classList.add('row', 'g-3', 'vehicle-entry', 'mb-3');
+      row.innerHTML = `
+        <div class="col-md-4">
+          <label class="form-label">Vehicle Number</label>
+          <input type="text" name="vehicle_no[]" class="form-control" placeholder="e.g., KA50MC1234" pattern="[A-Z]{2}[0-9]{2}[A-Z]{1,2}[0-9]{4}" required>
+          <div class="form-text text-muted">Format: KA50MC1234</div>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Owner Name</label>
+          <input type="text" name="owner_name[]" class="form-control" placeholder="Owner Full Name" required>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Aadhar Number</label>
+          <input type="text" name="aadhar[]" class="form-control" placeholder="12-digit Aadhar" pattern="[0-9]{12}" required>
         </div>
       `;
-      container.appendChild(div);
-    });
+      container.appendChild(row);
+      window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+    }
   </script>
+
 </body>
 </html>
