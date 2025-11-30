@@ -1,22 +1,204 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>{{ vehicle.vehicle_no }} - Tracker Dashboard</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Smart Toll — Developer Dashboard</title>
+
+  <!-- Bootstrap -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <style>
+    body {
+      background: linear-gradient(135deg, #fbfbfc, #f8f7fa);
+      font-family: 'Poppins', sans-serif;
+      color: #ccd3de;
+      min-height: 100vh;
+    }
+    #map {
+      height: 420px;
+      border-radius: 15px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+      margin-top: 20px;
+    }
+    .navbar {
+      background: linear-gradient(90deg, #ebebed, #f8f7fa);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+    .stat-card {
+      background: rgba(255,255,255,0.9);
+      border-radius: 15px;
+      padding: 20px;
+      text-align: center;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .stat-title {
+      font-weight: 600;
+      color: #4b5563;
+    }
+    .stat-value {
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: #111827;
+    }
+  </style>
 </head>
-<body class="bg-gray-100 p-10">
-    <h1 class="text-3xl font-bold text-blue-600 mb-4">🚗 {{ vehicle.vehicle_no }} - Live Trip Summary</h1>
-    <div class="bg-white p-6 rounded-xl shadow-lg w-[500px]">
-        <p><strong>Owner:</strong> {{ vehicle.full_name }}</p>
-        <p><strong>Phone:</strong> {{ vehicle.phone_number }}</p>
-        <p><strong>Aadhar:</strong> {{ vehicle.aadhar_number }}</p>
-        <hr class="my-3">
-        <p><strong>Trip:</strong> {{ trip.start_location }} ➜ {{ trip.end_location }}</p>
-        <p><strong>Total Distance:</strong> {{ trip.total_distance }} km</p>
-        <p><strong>Highway Distance:</strong> {{ trip.highway_distance }} km</p>
-        <p><strong>Fare Deducted:</strong> ₹{{ trip.total_fare }}</p>
-        <a href="/history/{{ vehicle.vehicle_no }}" class="mt-4 inline-block bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">View Trip History</a>
+
+<body>
+  <!-- Navbar -->
+  <nav class="navbar navbar-dark px-3">
+    <a class="navbar-brand fw-bold" href="#">🧠 Smart Toll — Developer Dashboard</a>
+    <div class="ms-auto">
+      <a href="/logout" class="btn btn-outline-light btn-sm">Logout</a>
     </div>
+  </nav>
+
+  <div class="container mt-4">
+    <h3 class="fw-bold">Welcome Developer</h3>
+    <p>Monitor live vehicle locations, analytics, and highway performance in real time.</p>
+
+    <!-- Analytics -->
+    <div class="row mt-3 g-3">
+      <div class="col-md-4">
+        <div class="stat-card">
+          <div class="stat-title">Total Vehicles</div>
+          <div class="stat-value text-primary">{{ total_vehicles }}</div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="stat-card">
+          <div class="stat-title">Total Trips</div>
+          <div class="stat-value text-success">{{ total_trips }}</div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="stat-card">
+          <div class="stat-title">Highway Distance (km)</div>
+          <div class="stat-value text-danger">{{ highway_sum }}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Map -->
+    <h5 class="mt-4 fw-bold text-dark">📍 Live Tracking Map</h5>
+    <div id="map"></div>
+
+    <!-- Vehicle Table -->
+    <div class="card mt-4 p-3">
+      <h5 class="fw-bold mb-3">Registered Vehicles</h5>
+      {% if vehicles %}
+      <div class="table-responsive">
+        <table class="table table-bordered align-middle">
+          <thead class="table-light">
+            <tr>
+              <th>Vehicle No</th>
+              <th>Owner</th>
+              <th>Phone</th>
+              <th>Balance (₹)</th>
+              <th>Created On</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for v in vehicles %}
+            <tr>
+              <td>{{ v.vehicle_no }}</td>
+              <td>{{ v.owner_name }}</td>
+              <td>{{ v.phone }}</td>
+              <td>₹{{ "%.2f"|format(v.balance) }}</td>
+              <td>{{ v.created_at.strftime("%Y-%m-%d %H:%M:%S") }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <p>No vehicles registered yet.</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Socket.IO -->
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+  <script>
+    let map;
+    const markers = {};
+    const paths = {};
+
+    function initMap() {
+      map = new google.maps.Map(document.getElementById("map"), {
+        center: { lat: 12.9716, lng: 77.5946 },
+        zoom: 6,
+      });
+    }
+
+    const socket = io("http://127.0.0.1:5000", { transports: ["websocket"] });
+
+    socket.on("connect", () => console.log("🟢 Connected to Socket.IO"));
+    socket.on("disconnect", () => console.log("🔴 Disconnected"));
+
+    socket.on("location_update", (data) => {
+      const { vehicle_no, lat, lng, road_name } = data;
+      if (!vehicle_no || !lat || !lng) return;
+
+      const pos = { lat: parseFloat(lat), lng: parseFloat(lng) };
+      const isHighway = road_name && road_name.toLowerCase().includes("highway");
+      const color = isHighway ? "#2563eb" : "#10b981"; // blue for highway, green for local
+
+      if (!markers[vehicle_no]) {
+        markers[vehicle_no] = new google.maps.Marker({
+          position: pos,
+          map: map,
+          label: vehicle_no,
+          icon: {
+            path: google.maps.SymbolPath.CIRCLE,
+            scale: 7,
+            fillColor: color,
+            fillOpacity: 1,
+            strokeColor: "#1e3a8a",
+            strokeWeight: 2,
+          },
+        });
+
+        paths[vehicle_no] = new google.maps.Polyline({
+          path: [pos],
+          geodesic: true,
+          strokeColor: color,
+          strokeOpacity: 1.0,
+          strokeWeight: 5,
+          map,
+        });
+
+        map.setCenter(pos);
+      } else {
+        const oldPos = markers[vehicle_no].getPosition();
+        const newPos = new google.maps.LatLng(pos);
+        const steps = 20;
+        let step = 0;
+
+        function animateMarker() {
+          if (step < steps) {
+            const lat = oldPos.lat() + ((pos.lat - oldPos.lat()) * step) / steps;
+            const lng = oldPos.lng() + ((pos.lng - oldPos.lng()) * step) / steps;
+            markers[vehicle_no].setPosition(new google.maps.LatLng(lat, lng));
+            step++;
+            requestAnimationFrame(animateMarker);
+          } else {
+            markers[vehicle_no].setPosition(newPos);
+          }
+        }
+        animateMarker();
+
+        paths[vehicle_no].getPath().push(pos);
+        paths[vehicle_no].setOptions({ strokeColor: color });
+      }
+
+      map.panTo(pos);
+    });
+  </script>
+
+  <!-- ✅ Embedded Google Maps API Key -->
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDwHmT9VfKtdxVyvlO9FUCzbi87tpBWF6E&callback=initMap" async defer></script>
 </body>
 </html>

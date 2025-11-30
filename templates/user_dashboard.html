@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SmartToll — User Dashboard</title>
+
+  <!-- Bootstrap -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <style>
+    body {
+      background: linear-gradient(135deg, #a5b4fc, #c084fc);
+      min-height: 100vh;
+      font-family: 'Poppins', sans-serif;
+      color: #1e293b;
+    }
+
+    #map {
+      height: 450px;
+      border-radius: 15px;
+      margin-top: 20px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+
+    .navbar {
+      background: linear-gradient(90deg, #6366f1, #8b5cf6);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+
+    .legend {
+      margin-top: 10px;
+      padding: 10px;
+      border-radius: 10px;
+      background: rgba(255,255,255,0.8);
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      font-size: 14px;
+    }
+    .legend span { display: flex; align-items: center; gap: 5px; }
+    .color-box {
+      width: 16px;
+      height: 16px;
+      border-radius: 3px;
+    }
+
+    .trip-summary {
+      background: rgba(255,255,255,0.9);
+      border-radius: 10px;
+      margin-top: 20px;
+      padding: 15px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Navbar -->
+  <nav class="navbar navbar-dark px-3">
+    <a class="navbar-brand fw-bold" href="#">🚗 SmartToll — User Dashboard</a>
+    <div class="ms-auto">
+      <a href="/logout" class="btn btn-outline-light btn-sm">Logout</a>
+    </div>
+  </nav>
+
+  <div class="container mt-4">
+    <h3>Welcome, {{ user.full_name }}</h3>
+    <p>Email: {{ user.email }}</p>
+
+    <!-- Vehicle Table -->
+    <div class="card mt-3 p-3">
+      <h5 class="fw-bold mb-3">Your Vehicles</h5>
+      {% if vehicles %}
+      <table class="table table-bordered align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>Vehicle No</th>
+            <th>Owner</th>
+            <th>Balance (₹)</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for v in vehicles %}
+          <tr>
+            <td>{{ v.vehicle_no }}</td>
+            <td>{{ v.owner_name }}</td>
+            <td>₹{{ "%.2f"|format(v.balance) }}</td>
+            <td>
+              <a href="{{ url_for('user_history', vehicle_no=v.vehicle_no) }}" class="btn btn-sm btn-outline-primary">History</a>
+              <a href="{{ url_for('wallet_add') }}" class="btn btn-sm btn-outline-success">Add Balance</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p>No vehicles registered yet.</p>
+      {% endif %}
+    </div>
+
+    <!-- Live Map -->
+    <h5 class="mt-4 fw-bold text-dark">📍 Live Vehicle Tracking</h5>
+    <div id="map"></div>
+
+    <div class="legend mt-2">
+      <span><div class="color-box" style="background:#2563eb;"></div> Highway</span>
+      <span><div class="color-box" style="background:#22c55e;"></div> City Road</span>
+      <span><div class="color-box" style="background:#dc2626;"></div> Toll Zone</span>
+    </div>
+
+    <!-- Live Trip Summary -->
+    <div class="trip-summary">
+      <h6 class="fw-bold text-dark">🧭 Live Trip Summary</h6>
+      <p class="mb-1">Highway Distance: <span id="highwayDistance" class="fw-bold text-primary">0.00</span> km</p>
+      <p class="mb-1">City Distance: <span id="cityDistance" class="fw-bold text-success">0.00</span> km</p>
+      <p class="mb-1">Toll Zone Distance: <span id="tollDistance" class="fw-bold text-danger">0.00</span> km</p>
+      <p class="mt-2">💰 Fare Deducted (Highway Only): ₹<span id="fareDeducted" class="fw-bold text-danger">0.00</span></p>
+    </div>
+  </div>
+
+  <!-- Socket.IO -->
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+  <script>
+    let map;
+    const markers = {};
+    const paths = {};
+    const distances = { highway: 0, city: 0, toll: 0 };
+    const fareRate = 2.5; // ₹ per km on highway
+
+    function getRoadColor(roadName) {
+      if (!roadName) return "#6366f1";
+      const lower = roadName.toLowerCase();
+      if (lower.includes("highway")) return "#2563eb"; // blue
+      if (lower.includes("city") || lower.includes("local") || lower.includes("main")) return "#22c55e"; // green
+      if (lower.includes("toll")) return "#dc2626"; // red
+      return "#6366f1";
+    }
+
+    function initMap() {
+      map = new google.maps.Map(document.getElementById("map"), {
+        center: { lat: 12.9716, lng: 77.5946 },
+        zoom: 7,
+        mapTypeId: "roadmap",
+      });
+      console.log("✅ Google Map initialized");
+    }
+
+    const socket = io(window.location.origin, { transports: ["websocket"] });
+
+    socket.on("connect", () => console.log("🟢 Connected to Socket.IO"));
+    socket.on("disconnect", () => console.log("🔴 Disconnected"));
+
+    socket.on("location_update", (data) => {
+      console.log("📍 Location Update:", data);
+
+      const { vehicle_no, lat, lng, road_name } = data;
+      if (!vehicle_no || !lat || !lng) return;
+
+      const pos = new google.maps.LatLng(parseFloat(lat), parseFloat(lng));
+      const color = getRoadColor(road_name);
+
+      // Create new marker if missing
+      if (!markers[vehicle_no]) {
+        markers[vehicle_no] = new google.maps.Marker({
+          position: pos,
+          map,
+          title: `${vehicle_no} (${road_name})`,
+          label: {
+            text: vehicle_no,
+            color: "#fff",
+            fontWeight: "bold",
+          },
+          icon: {
+            path: google.maps.SymbolPath.CIRCLE,
+            scale: 8,
+            fillColor: color,
+            fillOpacity: 1,
+            strokeWeight: 1,
+            strokeColor: "#fff",
+          },
+        });
+
+        paths[vehicle_no] = new google.maps.Polyline({
+          path: [pos],
+          geodesic: true,
+          strokeColor: color,
+          strokeOpacity: 0.9,
+          strokeWeight: 5,
+          map,
+        });
+
+        map.setCenter(pos);
+      } else {
+        const path = paths[vehicle_no].getPath();
+        const prev = path.getAt(path.getLength() - 1);
+        const d = computeDistance(prev.lat(), prev.lng(), pos.lat(), pos.lng());
+
+        if (color === "#2563eb") distances.highway += d;
+        else if (color === "#22c55e") distances.city += d;
+        else if (color === "#dc2626") distances.toll += d;
+
+        path.push(pos);
+        markers[vehicle_no].setPosition(pos);
+        paths[vehicle_no].setOptions({ strokeColor: color });
+
+        // Update UI
+        document.getElementById("highwayDistance").innerText = distances.highway.toFixed(2);
+        document.getElementById("cityDistance").innerText = distances.city.toFixed(2);
+        document.getElementById("tollDistance").innerText = distances.toll.toFixed(2);
+        document.getElementById("fareDeducted").innerText = (distances.highway * fareRate).toFixed(2);
+
+        map.panTo(pos);
+      }
+    });
+
+    function computeDistance(lat1, lon1, lat2, lon2) {
+      const R = 6371; // km
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLon = (lon2 - lon1) * Math.PI / 180;
+      const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLon/2)**2;
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return R * c;
+    }
+  </script>
+
+  <!-- Google Maps API -->
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDwHmT9VfKtdxVyvlO9FUCzbi87tpBWF6E&callback=initMap" async defer></script>
+</body>
+</html>

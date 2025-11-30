@@ -1,64 +1,87 @@
-import requests
-import sys
+# simulate_tracker.py
 import time
-import googlemaps
+import requests
+from geopy.distance import geodesic
 
-# 🚗 Get vehicle number from command line
-if len(sys.argv) < 2:
-    print("❌ Usage: python simulate_tracker.py <vehicle_no>")
-    sys.exit(1)
+# MongoDB coordinates: Bengaluru → Mangalore (for testing)
+START = (12.9716, 77.5946)
+END = (22.2604, 84.8536)
 
-vehicle_no = sys.argv[1]
-print(f"📍 Starting tracker for vehicle: {vehicle_no}")
+API_URL = "http://127.0.0.1:5000/api/update_location"   # Flask endpoint
+LOG_URL = "http://127.0.0.1:5000/api/track_and_log"     # Final trip log endpoint
 
-# ✅ Replace with your Flask server URL (ngrok or localhost)
-SERVER_URL = "http://127.0.0.1:5000"
 
-# ✅ Google Maps setup
-API_KEY = "AIzaSyCBSyzLTpRbiD0qnQizzuaaqBgwqYme-6A"
-gmaps = googlemaps.Client(key=API_KEY)
+def interpolate_coords(start, end, steps):
+    """Generate intermediate coordinates from start → end."""
+    lat1, lon1 = start
+    lat2, lon2 = end
+    return [
+        (
+            lat1 + (lat2 - lat1) * i / steps,
+            lon1 + (lon2 - lon1) * i / steps
+        )
+        for i in range(steps + 1)
+    ]
 
-# ✅ Define a route for simulation (you can change)
-start = "Kengeri, Bengaluru, Karnataka"
-end = "Kushalnagar, Karnataka"
 
-print(f"🛣️ Getting route from {start} → {end}...")
-directions = gmaps.directions(start, end, mode="driving")
+def simulate_vehicle(vehicle_no, total_steps=20, delay=2):
+    """Simulate movement and send updates to Flask backend."""
+    print(f"✅ Connected to MongoDB")
+    print(f"🚗 Simulating {vehicle_no} from {START} → {END} ...")
 
-if not directions:
-    print("❌ No route found.")
-    sys.exit(1)
+    coords = interpolate_coords(START, END, total_steps)
+    total_distance = 0.0
+    highway_distance = 0.0
+    total_fare = 0.0
 
-route = directions[0]['legs'][0]['steps']
-total_points = sum(1 for step in route)
-print(f"✅ Route loaded with {len(route)} segments.\n")
+    for i in range(1, len(coords)):
+        start = coords[i - 1]
+        end = coords[i]
+        segment_km = geodesic(start, end).km
+        total_distance += segment_km
 
-# ✅ Send each coordinate to your Flask API
-for i, step in enumerate(route, start=1):
-    start_lat = step['start_location']['lat']
-    start_lng = step['start_location']['lng']
-    end_lat = step['end_location']['lat']
-    end_lng = step['end_location']['lng']
-    road = step['html_instructions']
-
-    data = {
-        'vehicle_no': vehicle_no,
-        'start_lat': start_lat,
-        'start_lng': start_lng,
-        'end_lat': end_lat,
-        'end_lng': end_lng,
-        'road_name': road
-    }
-
-    try:
-        res = requests.post(f"{SERVER_URL}/update_location", json=data)
-        if res.status_code == 200:
-            print(f"✅ [{i}/{total_points}] Point sent: {road[:40]}...")
+        # Simple logic: if step index divisible by 3 → Highway
+        if i % 3 == 0:
+            road_name = "National Highway"
+            highway_distance += segment_km
+            total_fare += segment_km * 2.5  # ₹2.5/km
         else:
-            print(f"⚠️ Server error ({res.status_code}): {res.text}")
-    except Exception as e:
-        print(f"❌ Network error: {e}")
+            road_name = "Local Road"
+            total_fare += segment_km * 1.2  # ₹1.2/km
 
-    time.sleep(1)  # simulate movement delay
+        print(f"🛣️ {road_name} ({total_distance:.2f} km total)")
 
-print("🏁 Trip completed successfully!")
+        # 🔹 Send live update to Flask API
+        payload = {
+            "vehicle_no": vehicle_no,
+            "lat": end[0],
+            "lng": end[1],
+            "road_name": road_name
+        }
+
+        try:
+            requests.post(API_URL, json=payload, timeout=5)
+        except Exception as e:
+            print("❌ Failed to send:", e)
+
+        time.sleep(delay)
+
+    # ✅ Log the completed trip at the end
+    trip_summary = {
+        "vehicle_no": vehicle_no,
+        "start_location": f"{START}",
+        "end_location": f"{END}",
+        "total_distance": total_distance,
+        "highway_distance": highway_distance,
+        "total_fare": total_fare,
+    }
+    requests.post(LOG_URL, json=trip_summary)
+    print("✅ Trip logged successfully!")
+
+
+if __name__ == "__main__":
+    import sys
+    if len(sys.argv) != 2:
+        print("Usage: python simulate_tracker.py <VEHICLE_NO>")
+    else:
+        simulate_vehicle(sys.argv[1])
