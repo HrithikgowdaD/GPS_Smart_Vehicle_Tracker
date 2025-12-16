@@ -16,6 +16,9 @@ from flask_pymongo import PyMongo
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_socketio import SocketIO
 
+import qrcode
+
+
 # ---------------- CONFIG ----------------
 app = Flask(__name__)
 app.config["MONGO_URI"] = os.environ.get("MONGO_URI", "mongodb://localhost:27017/toll_dashboard")
@@ -87,6 +90,11 @@ def home():
 # ---------- Register ----------
 @app.route("/register", methods=["GET", "POST"])
 def register():
+    #  clear any previous login session / flash
+    session.pop("user_id", None)
+    session.pop("email", None)
+    session.pop("role", None)
+
     if request.method == "POST":
         full_name = request.form.get("full_name")
         email = request.form.get("email")
@@ -105,9 +113,12 @@ def register():
             "role": "normal",
             "created_at": datetime.utcnow()
         })
+
         flash("Registered successfully! Please log in.", "success")
         return redirect(url_for("home"))
+
     return render_template("register.html")
+
 
 
 # ---------- Login ----------
@@ -158,26 +169,43 @@ def register_vehicle():
         registered_count = 0
         skipped = []
 
+        # ✅ ensure QR directory exists
+        qr_dir = "static/qr"
+        os.makedirs(qr_dir, exist_ok=True)
+
         for i, vehicle_no in enumerate(vehicles):
             vehicle_no = vehicle_no.strip().upper()
             if not vehicle_no:
                 continue
+
             if vehicles_col.find_one({"vehicle_no": vehicle_no}):
                 skipped.append(vehicle_no)
                 continue
 
+            # ✅ generate QR
+            qr_data = f"SMARTTOLL:{vehicle_no}"
+            qr_filename = f"{vehicle_no}.png"
+            qr_path = f"{qr_dir}/{qr_filename}"
+
+            qr_img = qrcode.make(qr_data)
+            qr_img.save(qr_path)
+
+            # ✅ store vehicle with QR path
             vehicles_col.insert_one({
                 "vehicle_no": vehicle_no,
                 "owner_name": owners[i],
                 "aadhar": aadhars[i],
                 "phone": phone,
                 "balance": 0.0,
+                "qr_path": qr_path,          # 👈 IMPORTANT
                 "created_at": datetime.utcnow()
             })
+
             registered_count += 1
 
         if registered_count > 0:
             flash(f"{registered_count} vehicle(s) registered successfully!", "success")
+
         if skipped:
             flash(f"Skipped existing vehicle(s): {', '.join(skipped)}", "warning")
 
@@ -185,6 +213,7 @@ def register_vehicle():
 
     vehicles = list(vehicles_col.find({"phone": user.get("phone")}))
     return render_template("vehicle_register.html", user=user, vehicles=vehicles)
+
 
 
 # ---------- Wallet Top-Up ----------

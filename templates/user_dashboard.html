@@ -52,6 +52,16 @@
       padding: 15px;
       box-shadow: 0 2px 6px rgba(0,0,0,0.1);
     }
+
+
+    .vehicle-row {
+  cursor: pointer;
+}
+
+.vehicle-row:hover {
+  background-color: rgba(99, 102, 241, 0.12);
+}
+
   </style>
 </head>
 
@@ -69,36 +79,80 @@
     <p>Email: {{ user.email }}</p>
 
     <!-- Vehicle Table -->
-    <div class="card mt-3 p-3">
-      <h5 class="fw-bold mb-3">Your Vehicles</h5>
-      {% if vehicles %}
-      <table class="table table-bordered align-middle">
-        <thead class="table-light">
-          <tr>
-            <th>Vehicle No</th>
-            <th>Owner</th>
-            <th>Balance (₹)</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for v in vehicles %}
-          <tr>
-            <td>{{ v.vehicle_no }}</td>
-            <td>{{ v.owner_name }}</td>
-            <td>₹{{ "%.2f"|format(v.balance) }}</td>
-            <td>
-              <a href="{{ url_for('user_history', vehicle_no=v.vehicle_no) }}" class="btn btn-sm btn-outline-primary">History</a>
-              <a href="{{ url_for('wallet_add') }}" class="btn btn-sm btn-outline-success">Add Balance</a>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-      {% else %}
-      <p>No vehicles registered yet.</p>
-      {% endif %}
-    </div>
+<div class="card mt-3 p-3">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="fw-bold mb-0">Your Vehicles</h5>
+    <a href="{{ url_for('register_vehicle') }}" class="btn btn-sm btn-primary">
+      ➕ Add Vehicle
+    </a>
+  </div>
+
+  {% if vehicles %}
+  <table class="table table-bordered align-middle">
+   <thead class="table-light">
+  <tr>
+    <th>Vehicle No</th>
+    <th>Owner</th>
+    <th>QR Code</th>
+    <th>Balance (₹)</th>
+    <th>Actions</th>
+  </tr>
+</thead>
+
+    <tbody>
+      {% for v in vehicles %}
+   <tr class="vehicle-row" onclick="focusVehicle('{{ v.vehicle_no }}')">
+
+  <!-- Vehicle No -->
+  <td class="fw-semibold">{{ v.vehicle_no }}</td>
+
+  <!-- Owner -->
+  <td>{{ v.owner_name }}</td>
+
+  <!-- QR Code -->
+  <td>
+    {% if v.qr_path %}
+      <img src="/{{ v.qr_path }}"
+           alt="QR {{ v.vehicle_no }}"
+           width="60"
+           class="border rounded p-1">
+    {% else %}
+      <span class="text-muted">Not generated</span>
+    {% endif %}
+  </td>
+
+  <!-- Balance -->
+  <td class="fw-bold text-success">
+    ₹{{ "%.2f"|format(v.balance) }}
+  </td>
+
+  <!-- Actions -->
+  <td class="d-flex justify-content-center gap-1 flex-wrap">
+    <a href="{{ url_for('user_history', vehicle_no=v.vehicle_no) }}"
+       class="btn btn-sm btn-outline-primary">
+      📜 History
+    </a>
+
+    <a href="{{ url_for('wallet_add') }}"
+       class="btn btn-sm btn-outline-success">
+      💰 Balance
+    </a>
+
+    <button class="btn btn-sm btn-outline-danger"
+            onclick="focusVehicle('{{ v.vehicle_no }}')">
+      📍 Track
+    </button>
+  </td>
+</tr>
+
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p>No vehicles registered yet.</p>
+  {% endif %}
+</div>
+
 
     <!-- Live Map -->
     <h5 class="mt-4 fw-bold text-dark">📍 Live Vehicle Tracking</h5>
@@ -225,7 +279,17 @@
       const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
       return R * c;
     }
-  </script>
+ 
+  function focusVehicle(vehicleNo) {
+    if (markers[vehicleNo]) {
+      map.panTo(markers[vehicleNo].getPosition());
+      map.setZoom(14);
+    } else {
+      alert("Live location not available yet for " + vehicleNo);
+    }
+  }
+</script>
+
 
   <!-- Google Maps API -->
   <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDwHmT9VfKtdxVyvlO9FUCzbi87tpBWF6E&callback=initMap" async defer></script>
