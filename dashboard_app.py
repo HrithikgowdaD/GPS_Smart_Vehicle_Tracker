@@ -1,5 +1,5 @@
 # dashboard_app.py
-# ✅ Smart Toll System Dashboard (FULLY WORKING)
+# ✅ Smart Toll System Dashboard (FULLY WORKING + FIXED)
 
 import pkgutil, importlib.util
 if not hasattr(pkgutil, "get_loader"):
@@ -31,6 +31,9 @@ users_col = mongo.db.users
 vehicles_col = mongo.db.vehicles
 trips_col = mongo.db.trips
 pings_col = mongo.db.live_pings
+
+# ✅ ADDED (for route storage)
+routes_col = mongo.db.live_routes
 
 GOOGLE_MAPS_API_KEY = "AIzaSyDwHmT9VfKtdxVyvlO9FUCzbi87tpBWF6E"
 
@@ -176,27 +179,76 @@ def user_dashboard():
 @login_required()
 def user_history(vehicle_no):
     trips = list(trips_col.find({"vehicle_no": vehicle_no}))
-    return render_template("user_history.html", trips=trips)
+    return render_template(
+        "user_history.html",
+        trips=trips,
+        vehicle_no=vehicle_no,
+        google_api_key=GOOGLE_MAPS_API_KEY   # 🔴 THIS WAS MISSING
+    )
 
 
-# ---------- LIVE API ----------
+
+# ---------- LIVE LOCATION API ----------
 @app.route("/api/update_location", methods=["POST"])
 def api_update_location():
     data = request.get_json()
-    pings_col.update_one(
+
+    pings_col.insert_one({
+        "vehicle_no": data["vehicle_no"],
+        "lat": data["lat"],
+        "lng": data["lng"],
+        "road_name": data.get("road_name"),
+        "timestamp": datetime.utcnow()
+    })
+
+    # ✅ ADDED: append GPS points to route
+    routes_col.update_one(
         {"vehicle_no": data["vehicle_no"]},
-        {"$set": data},
+        {"$push": {"route": {"lat": data["lat"], "lng": data["lng"]}}},
         upsert=True
     )
+
     socketio.emit("location_update", data)
     return jsonify({"status": "ok"})
 
 
-# ---------- QR SCAN VEHICLE PROFILE (FIXED) ----------
+# ---------- TRIP SAVE ----------
+@app.route("/api/track_and_log", methods=["POST"])
+def track_and_log():
+    data = request.get_json()
+
+    vehicle_no = data["vehicle_no"]
+    fare = float(data["total_fare"])
+
+    # 1️⃣ Save trip
+    trips_col.insert_one({
+        "vehicle_no": vehicle_no,
+        "start": data["start_location"],
+        "end": data["end_location"],
+        "total_distance": data["total_distance"],
+        "highway_distance": data["highway_distance"],
+        "fare": fare,
+        "date": datetime.utcnow().strftime("%Y-%m-%d"),
+        "time": datetime.utcnow().strftime("%H:%M:%S")
+    })
+
+    # 2️⃣ Deduct fare from wallet
+    vehicles_col.update_one(
+        {"vehicle_no": vehicle_no},
+        {"$inc": {"balance": -fare}}
+    )
+
+    return jsonify({
+        "status": "trip_saved",
+        "fare_deducted": fare
+    })
+
+
+
+# ---------- QR PROFILE ----------
 @app.route("/vehicle/<vehicle_no>")
 def vehicle_profile(vehicle_no):
     vehicle = vehicles_col.find_one({"vehicle_no": vehicle_no.upper()})
-
     if not vehicle:
         return "<h3>Vehicle not found</h3>", 404
 
@@ -207,7 +259,6 @@ def vehicle_profile(vehicle_no):
     return f"""
     <html>
     <head>
-      <meta name='viewport' content='width=device-width, initial-scale=1'>
       <link href='https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css' rel='stylesheet'>
     </head>
     <body class='bg-light'>
@@ -219,7 +270,6 @@ def vehicle_profile(vehicle_no):
           <p><b>Phone:</b> {vehicle["phone"]}</p>
           <p><b>Aadhaar:</b> {masked}</p>
           <p><b>Vehicles on this Phone:</b> {count}</p>
-          <div class='alert alert-info'>Sensitive data protected</div>
         </div>
       </div>
     </body>

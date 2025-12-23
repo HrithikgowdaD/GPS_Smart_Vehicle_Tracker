@@ -9,5 +9,5 @@ requests==2.31.0
 googlemaps==4.10.0
 
 # QR code support
-qrcode==7.4.2
+qrcode==7.4.2 
 Pillow==10.2.0

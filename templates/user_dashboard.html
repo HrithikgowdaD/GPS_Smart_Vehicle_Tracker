@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SmartToll — User Dashboard</title>
 
-  <!-- Bootstrap -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 
   <style>
@@ -18,6 +18,7 @@
 
     #map {
       height: 450px;
+      width: 100%;
       border-radius: 15px;
       margin-top: 20px;
       box-shadow: 0 4px 12px rgba(0,0,0,0.3);
@@ -25,24 +26,23 @@
 
     .navbar {
       background: linear-gradient(90deg, #6366f1, #8b5cf6);
-      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
     }
+
+    .vehicle-row { cursor: pointer; }
+    .vehicle-row:hover { background-color: rgba(99,102,241,0.12); }
+
+    .qr-thumb { cursor: pointer; transition: transform 0.2s; }
+    .qr-thumb:hover { transform: scale(1.1); }
 
     .legend {
       margin-top: 10px;
       padding: 10px;
       border-radius: 10px;
-      background: rgba(255,255,255,0.8);
+      background: rgba(255,255,255,0.9);
       display: flex;
       justify-content: center;
       gap: 20px;
       font-size: 14px;
-    }
-
-    .legend span {
-      display: flex;
-      align-items: center;
-      gap: 5px;
     }
 
     .color-box {
@@ -50,38 +50,13 @@
       height: 16px;
       border-radius: 3px;
     }
-
-    .trip-summary {
-      background: rgba(255,255,255,0.9);
-      border-radius: 10px;
-      margin-top: 20px;
-      padding: 15px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-    }
-
-    .vehicle-row {
-      cursor: pointer;
-    }
-
-    .vehicle-row:hover {
-      background-color: rgba(99, 102, 241, 0.12);
-    }
-
-    .qr-thumb {
-      cursor: pointer;
-      transition: transform 0.2s;
-    }
-
-    .qr-thumb:hover {
-      transform: scale(1.1);
-    }
   </style>
 </head>
 
 <body>
 
 <nav class="navbar navbar-dark px-3">
-  <a class="navbar-brand fw-bold" href="#">🚗 SmartToll — User Dashboard</a>
+  <a class="navbar-brand fw-bold">🚗 SmartToll — User Dashboard</a>
   <div class="ms-auto">
     <a href="/logout" class="btn btn-outline-light btn-sm">Logout</a>
   </div>
@@ -108,29 +83,20 @@
           <th>Actions</th>
         </tr>
       </thead>
-
       <tbody>
         {% for v in vehicles %}
         <tr class="vehicle-row" onclick="focusVehicle('{{ v.vehicle_no }}')">
-
           <td class="fw-semibold">{{ v.vehicle_no }}</td>
           <td>{{ v.owner_name }}</td>
-
-          <!-- ✅ FIXED QR CLICK -->
           <td class="text-center">
             <img
               src="https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=http://192.168.0.103:5000/vehicle/{{ v.vehicle_no }}"
               width="60"
               class="border rounded p-1 qr-thumb"
-              onclick="openQR(event, '{{ v.vehicle_no }}')"
-            >
+              onclick="openQR(event, '{{ v.vehicle_no }}')">
             <div class="small text-primary">Click</div>
           </td>
-
-          <td class="fw-bold text-success">
-            ₹{{ "%.2f"|format(v.balance) }}
-          </td>
-
+          <td class="fw-bold text-success">₹{{ "%.2f"|format(v.balance) }}</td>
           <td class="d-flex justify-content-center gap-1 flex-wrap">
             <a href="{{ url_for('user_history', vehicle_no=v.vehicle_no) }}" class="btn btn-sm btn-outline-primary">📜 History</a>
             <a href="{{ url_for('wallet_add') }}" class="btn btn-sm btn-outline-success">💰 Balance</a>
@@ -146,10 +112,8 @@
   <h5 class="mt-4 fw-bold text-dark">📍 Live Vehicle Tracking</h5>
   <div id="map"></div>
 
-  <div class="legend mt-2">
-    <span><div class="color-box" style="background:#2563eb;"></div> Highway</span>
-    <span><div class="color-box" style="background:#22c55e;"></div> City Road</span>
-    <span><div class="color-box" style="background:#dc2626;"></div> Toll Zone</span>
+  <div class="legend">
+    <span><div class="color-box" style="background:#2563eb;"></div> Travel Path</span>
   </div>
 </div>
 
@@ -169,52 +133,125 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
 <script>
-  let map;
-  const markers = {};
+let map;
+let directionsService;
 
-  function initMap() {
-    map = new google.maps.Map(document.getElementById("map"), {
-      center: { lat: 12.9716, lng: 77.5946 },
-      zoom: 7
-    });
+const markers = {};
+const lastPositions = {};
+const polylines = {};
+const isAnimating = {};   // ✅ ADDED (safe)
 
-    setTimeout(() => {
-      google.maps.event.trigger(map, "resize");
-    }, 500);
-  }
-
-  const socket = io(window.location.origin, { transports: ["websocket"] });
-
-  socket.on("location_update", data => {
-    const { vehicle_no, lat, lng } = data;
-    if (!vehicle_no || !lat || !lng) return;
-
-    const pos = new google.maps.LatLng(lat, lng);
-    if (!markers[vehicle_no]) {
-      markers[vehicle_no] = new google.maps.Marker({ position: pos, map });
-    } else {
-      markers[vehicle_no].setPosition(pos);
-    }
+function initMap() {
+  map = new google.maps.Map(document.getElementById("map"), {
+    center: { lat: 12.9716, lng: 77.5946 },
+    zoom: 7,
+    mapTypeId: "roadmap",
+    gestureHandling: "greedy"
   });
 
-  function focusVehicle(vehicleNo) {
-    if (markers[vehicleNo]) {
-      map.panTo(markers[vehicleNo].getPosition());
-      map.setZoom(14);
+  directionsService = new google.maps.DirectionsService();
+}
+
+/* 🚗 Smooth slow animation on road */
+function animateAlongPath(marker, path, vehicle_no, delay = 30) {
+  let i = 0;
+  isAnimating[vehicle_no] = true;
+
+  function step() {
+    if (i >= path.length) {
+      isAnimating[vehicle_no] = false;
+      return;
     }
+    marker.setPosition(path[i]);
+    i++;
+    setTimeout(step, delay);
+  }
+  step();
+}
+
+/* SOCKET */
+const socket = io(window.location.origin, {
+  transports: ["polling", "websocket"]
+});
+
+socket.on("location_update", data => {
+  const { vehicle_no, lat, lng } = data;
+  if (!vehicle_no || !lat || !lng) return;
+
+  if (isAnimating[vehicle_no]) return; // ✅ BLOCK overlap
+
+  const destination = new google.maps.LatLng(lat, lng);
+
+  if (!markers[vehicle_no]) {
+    markers[vehicle_no] = new google.maps.Marker({
+      position: destination,
+      map,
+      title: vehicle_no,
+      icon: {
+        path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
+        scale: 5,
+        fillColor: "#2563eb",
+        fillOpacity: 1,
+        strokeColor: "#ffffff"
+      }
+    });
+
+    polylines[vehicle_no] = new google.maps.Polyline({
+      path: [destination],
+      strokeColor: "#2563eb",
+      strokeWeight: 5,
+      map
+    });
+
+    lastPositions[vehicle_no] = destination;
+    isAnimating[vehicle_no] = false;
+
+    map.setCenter(destination);
+    map.setZoom(10);
+    return;
   }
 
-  function openQR(event, vehicleNo) {
-    event.stopPropagation(); // ✅ KEY FIX
-    document.getElementById("qrVehicleNo").innerText = vehicleNo;
-    document.getElementById("qrBig").src =
-      "https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=" +
-      encodeURIComponent("http://192.168.0.103:5000/vehicle/" + vehicleNo);
-    new bootstrap.Modal(document.getElementById("qrModal")).show();
+  directionsService.route(
+    {
+      origin: lastPositions[vehicle_no],
+      destination: destination,
+      travelMode: google.maps.TravelMode.DRIVING
+    },
+    (result, status) => {
+      if (status !== "OK") return;
+
+      const steps = result.routes[0].legs[0].steps;
+      const roadPath = [];
+      steps.forEach(step => roadPath.push(...step.path));
+
+      animateAlongPath(markers[vehicle_no], roadPath, vehicle_no, 120);
+
+      const polyPath = polylines[vehicle_no].getPath();
+      roadPath.forEach(p => polyPath.push(p));
+
+      lastPositions[vehicle_no] = destination;
+    }
+  );
+});
+
+function focusVehicle(vehicleNo) {
+  if (markers[vehicleNo]) {
+    map.panTo(markers[vehicleNo].getPosition());
+    map.setZoom(14);
   }
+}
+
+function openQR(event, vehicleNo) {
+  event.stopPropagation();
+  document.getElementById("qrVehicleNo").innerText = vehicleNo;
+  document.getElementById("qrBig").src =
+    "https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=" +
+    encodeURIComponent("http://192.168.0.103:5000/vehicle/" + vehicleNo);
+  new bootstrap.Modal(document.getElementById("qrModal")).show();
+}
 </script>
 
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDwHmT9VfKtdxVyvlO9FUCzbi87tpBWF6E&callback=initMap" async defer></script>
+<script src="https://maps.googleapis.com/maps/api/js?key={{ google_api_key }}&callback=initMap" async defer></script>
 
 </body>
 </html>

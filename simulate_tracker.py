@@ -1,82 +1,107 @@
 # simulate_tracker.py
+# ✅ FINAL – Realistic GPS tracker simulation
+# ❌ No Google Directions API
+# ✅ Designed to work PERFECTLY with frontend Directions-based road animation
+
 import time
 import requests
+import math
 from geopy.distance import geodesic
 
-# MongoDB coordinates: Bengaluru → Mangalore (for testing)
-START = (12.9716, 77.5946)
-END = (22.2604, 84.8536)
+BASE_URL = "http://192.168.0.103:5000"
+UPDATE_URL = f"{BASE_URL}/api/update_location"
+LOG_URL = f"{BASE_URL}/api/track_and_log"
 
-API_URL = "http://127.0.0.1:5000/api/update_location"   # Flask endpoint
-LOG_URL = "http://127.0.0.1:5000/api/track_and_log"     # Final trip log endpoint
+# Start & End
+START = (12.9716, 77.5946)   # Bengaluru
+END   = (22.2604, 84.8536)   # Destination
 
-
-def interpolate_coords(start, end, steps):
-    """Generate intermediate coordinates from start → end."""
-    lat1, lon1 = start
-    lat2, lon2 = end
-    return [
-        (
-            lat1 + (lat2 - lat1) * i / steps,
-            lon1 + (lon2 - lon1) * i / steps
-        )
-        for i in range(steps + 1)
-    ]
+HIGHWAY_RATE = 2.5
+CITY_RATE = 1.2
 
 
-def simulate_vehicle(vehicle_no, total_steps=20, delay=2):
-    """Simulate movement and send updates to Flask backend."""
-    print(f"✅ Connected to MongoDB")
-    print(f"🚗 Simulating {vehicle_no} from {START} → {END} ...")
+def generate_realistic_gps_route(start, end, points=900):
+    lat1, lng1 = start
+    lat2, lng2 = end
+    route = []
 
-    coords = interpolate_coords(START, END, total_steps)
+    for i in range(points + 1):
+        t = i / points
+        lat = lat1 + (lat2 - lat1) * t
+        lng = lng1 + (lng2 - lng1) * t
+
+        # Micro GPS drift
+        lat += 0.002 * math.sin(t * math.pi * 2)
+        lng += 0.002 * math.cos(t * math.pi * 2)
+
+        route.append((round(lat, 6), round(lng, 6)))
+
+    return route
+
+
+def simulate_vehicle(vehicle_no, delay=0.8):
+    print("🚗 Starting realistic GPS tracker simulation")
+
+    route = generate_realistic_gps_route(START, END)
+
     total_distance = 0.0
     highway_distance = 0.0
     total_fare = 0.0
 
-    for i in range(1, len(coords)):
-        start = coords[i - 1]
-        end = coords[i]
-        segment_km = geodesic(start, end).km
-        total_distance += segment_km
+    # ✅ STORE FULL ROUTE FOR HISTORY
+    route_points = []
 
-        # Simple logic: if step index divisible by 3 → Highway
-        if i % 3 == 0:
-            road_name = "National Highway"
-            highway_distance += segment_km
-            total_fare += segment_km * 2.5  # ₹2.5/km
+    for i in range(1, len(route)):
+        prev = route[i - 1]
+        curr = route[i]
+
+        segment = geodesic(prev, curr).km
+        total_distance += segment
+
+        if i % 7 == 0:
+            road = "National Highway"
+            highway_distance += segment
+            total_fare += segment * HIGHWAY_RATE
         else:
-            road_name = "Local Road"
-            total_fare += segment_km * 1.2  # ₹1.2/km
+            road = "City Road"
+            total_fare += segment * CITY_RATE
 
-        print(f"🛣️ {road_name} ({total_distance:.2f} km total)")
-
-        # 🔹 Send live update to Flask API
         payload = {
             "vehicle_no": vehicle_no,
-            "lat": end[0],
-            "lng": end[1],
-            "road_name": road_name
+            "lat": curr[0],
+            "lng": curr[1],
+            "road_name": road
         }
 
-        try:
-            requests.post(API_URL, json=payload, timeout=5)
-        except Exception as e:
-            print("❌ Failed to send:", e)
+        # ✅ SAVE ROUTE POINT
+        route_points.append({
+            "lat": curr[0],
+            "lng": curr[1]
+        })
 
+        try:
+            requests.post(UPDATE_URL, json=payload, timeout=2)
+        except Exception as e:
+            print("⚠️ Network error:", e)
+
+        print(f"📍 {road}: {curr[0]}, {curr[1]}")
         time.sleep(delay)
 
-    # ✅ Log the completed trip at the end
-    trip_summary = {
-        "vehicle_no": vehicle_no,
-        "start_location": f"{START}",
-        "end_location": f"{END}",
-        "total_distance": total_distance,
-        "highway_distance": highway_distance,
-        "total_fare": total_fare,
-    }
-    requests.post(LOG_URL, json=trip_summary)
-    print("✅ Trip logged successfully!")
+    # ✅ FINAL TRIP LOG (WITH ROUTE)
+    try:
+        requests.post(LOG_URL, json={
+            "vehicle_no": vehicle_no,
+            "start_location": str(START),
+            "end_location": str(END),
+            "total_distance": round(total_distance, 2),
+            "highway_distance": round(highway_distance, 2),
+            "total_fare": round(total_fare, 2),
+            "route": route_points
+        })
+    except:
+        pass
+
+    print("✅ Trip completed successfully")
 
 
 if __name__ == "__main__":
