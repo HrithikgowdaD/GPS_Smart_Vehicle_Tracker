@@ -20,7 +20,7 @@ import qrcode
 
 # ---------------- CONFIG ----------------
 app = Flask(__name__)
-app.config["MONGO_URI"] = "mongodb://localhost:27017/toll_dashboard"
+app.config["MONGO_URI"] = "mongodb+srv://hrithikgowdad_db_user:kW4BrobmmdVh4p4d@gps-smarttoll.cowontb.mongodb.net/"
 app.config["SECRET_KEY"] = "change_this_secret"
 
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading")
@@ -182,33 +182,58 @@ def user_history(vehicle_no):
 # ---------- LIVE API ----------
 @app.route("/api/update_location", methods=["POST"])
 def api_update_location():
-    data = request.get_json()
-    pings_col.insert_one({
-    "vehicle_no": data["vehicle_no"],
-    "lat": data["lat"],
-    "lng": data["lng"],
-    "road_name": data.get("road_name"),
-    "timestamp": datetime.utcnow()
-})
+    data = request.get_json(force=True)
 
-    socketio.emit("location_update", data)
+    required = ["vehicle_no", "lat", "lng"]
+    for key in required:
+        if key not in data:
+            return jsonify({"error": f"Missing {key}"}), 400
+
+    payload = {
+        "vehicle_no": data["vehicle_no"],
+        "lat": float(data["lat"]),
+        "lng": float(data["lng"]),
+        "road_name": data.get("road_name", "Unknown"),
+        "timestamp": datetime.utcnow()
+    }
+
+    # 🔥 Always update live position
+    pings_col.update_one(
+        {"vehicle_no": payload["vehicle_no"]},
+        {"$set": payload},
+        upsert=True
+    )
+
+    # 🔥 Emit to dashboard
+    socketio.emit("location_update", {
+        "vehicle_no": payload["vehicle_no"],
+        "lat": payload["lat"],
+        "lng": payload["lng"],
+        "road_name": payload["road_name"]
+    })
+
     return jsonify({"status": "ok"})
+
 
 
 @app.route("/api/track_and_log", methods=["POST"])
 def track_and_log():
-    data = request.get_json()
-    trips_col.insert_one({
+    data = request.get_json(force=True)
+
+    trip = {
         "vehicle_no": data["vehicle_no"],
         "start_location": data["start_location"],
         "end_location": data["end_location"],
-        "total_distance": data["total_distance"],
-        "highway_distance": data["highway_distance"],
-        "fare": data["total_fare"],
-        "route": data["route"],
+        "total_distance": round(data["total_distance"], 2),
+        "highway_distance": round(data["highway_distance"], 2),
+        "fare": round(data["total_fare"], 2),
+        "route": data["route"],          # 🔥 FULL SNAPSHOT
         "created_at": datetime.utcnow()
-    })
+    }
+
+    trips_col.insert_one(trip)
     return jsonify({"status": "trip_saved"})
+
 
 
 
