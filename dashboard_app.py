@@ -176,20 +176,40 @@ def user_dashboard():
 @login_required()
 def user_history(vehicle_no):
     trips = list(trips_col.find({"vehicle_no": vehicle_no}))
-    return render_template("user_history.html", trips=trips)
+    return render_template("user_history.html", trips=trips, vehicle_no=vehicle_no)
 
 
 # ---------- LIVE API ----------
 @app.route("/api/update_location", methods=["POST"])
 def api_update_location():
     data = request.get_json()
-    pings_col.update_one(
-        {"vehicle_no": data["vehicle_no"]},
-        {"$set": data},
-        upsert=True
-    )
+    pings_col.insert_one({
+    "vehicle_no": data["vehicle_no"],
+    "lat": data["lat"],
+    "lng": data["lng"],
+    "road_name": data.get("road_name"),
+    "timestamp": datetime.utcnow()
+})
+
     socketio.emit("location_update", data)
     return jsonify({"status": "ok"})
+
+
+@app.route("/api/track_and_log", methods=["POST"])
+def track_and_log():
+    data = request.get_json()
+    trips_col.insert_one({
+        "vehicle_no": data["vehicle_no"],
+        "start_location": data["start_location"],
+        "end_location": data["end_location"],
+        "total_distance": data["total_distance"],
+        "highway_distance": data["highway_distance"],
+        "fare": data["total_fare"],
+        "route": data["route"],
+        "created_at": datetime.utcnow()
+    })
+    return jsonify({"status": "trip_saved"})
+
 
 
 # ---------- QR SCAN VEHICLE PROFILE (FIXED) ----------
