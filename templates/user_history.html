@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -18,8 +19,8 @@
 
     .card {
       border-radius: 15px;
-      background: rgba(255,255,255,0.9);
-      box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+      background: rgba(255, 255, 255, 0.9);
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
     }
 
     table {
@@ -86,10 +87,11 @@
               <td>{{ t.highway_distance }}</td>
               <td>₹{{ t.fare }}</td>
               <td>
-                <button class="btn btn-sm btn-outline-primary"
-                        onclick="showOnMap('{{ t.start }}', '{{ t.end }}')">
+                <button class="btn btn-sm btn-outline-primary" onclick='showOnMap({{ t.route | tojson }})'>
                   View
                 </button>
+
+
               </td>
             </tr>
             {% endfor %}
@@ -126,56 +128,57 @@
 
   <!-- ✅ Google Maps + Directions -->
   <script>
-    let map, directionsService, directionsRenderer;
+let map;
+let polyline;
 
-    function showOnMap(startName, endName) {
-      const modal = new bootstrap.Modal(document.getElementById('mapModal'));
-      modal.show();
+function showOnMap(route) {
+  if (!route || route.length < 2) {
+    alert("Route data not available for this trip.");
+    return;
+  }
 
-      // Demo coordinates (replace with actual lat/lng if stored)
-      const start = { lat: 12.9716, lng: 77.5946 }; // Bengaluru
-      const end = { lat: 12.9121, lng: 74.8560 };   // Mangalore
+  const modal = new bootstrap.Modal(document.getElementById("mapModal"));
+  modal.show();
 
-      setTimeout(() => {
-        // Initialize map once
-        if (!map) {
-          map = new google.maps.Map(document.getElementById("tripMap"), {
-            zoom: 7,
-            center: start,
-            mapTypeId: "roadmap"
-          });
-
-          directionsService = new google.maps.DirectionsService();
-          directionsRenderer = new google.maps.DirectionsRenderer({
-            map: map,
-            suppressMarkers: false,
-            polylineOptions: {
-              strokeColor: "#2563eb",
-              strokeWeight: 5
-            }
-          });
-        }
-
-        // Calculate route via Google Directions API
-        const request = {
-          origin: start,
-          destination: end,
-          travelMode: google.maps.TravelMode.DRIVING
-        };
-
-        directionsService.route(request, (result, status) => {
-          if (status === "OK") {
-            directionsRenderer.setDirections(result);
-          } else {
-            console.error("Directions request failed:", status);
-            alert("Unable to display route on map. Please try again.");
-          }
-        });
-      }, 300);
+  setTimeout(() => {
+    if (!map) {
+      map = new google.maps.Map(document.getElementById("tripMap"), {
+        zoom: 7,
+        center: route[0],
+        mapTypeId: "roadmap"
+      });
     }
-  </script>
+
+    // Clear previous polyline
+    if (polyline) {
+      polyline.setMap(null);
+    }
+
+    // Draw SNAPSHOT route (NO API CALL)
+    polyline = new google.maps.Polyline({
+      path: route,
+      geodesic: true,
+      strokeColor: "#2563eb",
+      strokeOpacity: 1.0,
+      strokeWeight: 5
+    });
+
+    polyline.setMap(map);
+
+    // Fit entire trip in view
+    const bounds = new google.maps.LatLngBounds();
+    route.forEach(p => bounds.extend(p));
+    map.fitBounds(bounds);
+
+  }, 300);
+}
+</script>
+
+
+
 
   <!-- ✅ Google Maps API with Directions -->
   <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDwHmT9VfKtdxVyvlO9FUCzbi87tpBWF6E"></script>
 </body>
+
 </html>

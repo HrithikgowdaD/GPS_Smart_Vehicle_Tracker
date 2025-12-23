@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -20,25 +21,31 @@
       height: 450px;
       border-radius: 15px;
       margin-top: 20px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
     }
 
     .navbar {
       background: linear-gradient(90deg, #6366f1, #8b5cf6);
-      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
     }
 
     .legend {
       margin-top: 10px;
       padding: 10px;
       border-radius: 10px;
-      background: rgba(255,255,255,0.8);
+      background: rgba(255, 255, 255, 0.8);
       display: flex;
       justify-content: center;
       gap: 20px;
       font-size: 14px;
     }
-    .legend span { display: flex; align-items: center; gap: 5px; }
+
+    .legend span {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
     .color-box {
       width: 16px;
       height: 16px;
@@ -46,27 +53,42 @@
     }
 
     .trip-summary {
-      background: rgba(255,255,255,0.9);
+      background: rgba(255, 255, 255, 0.9);
       border-radius: 10px;
       margin-top: 20px;
       padding: 15px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
     }
 
-
     .vehicle-row {
-  cursor: pointer;
-}
+      cursor: pointer;
+    }
 
-.vehicle-row:hover {
-  background-color: rgba(99, 102, 241, 0.12);
+    .vehicle-row:hover {
+      background-color: rgba(99, 102, 241, 0.12);
+    }
+
+    .qr-thumb {
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+
+    .qr-thumb:hover {
+      transform: scale(1.1);
+    }
+
+    #map {
+  height: 450px !important;
+  width: 100% !important;
+  min-height: 450px;
+  background: #e5e7eb; /* debug fallback */
 }
 
   </style>
 </head>
 
 <body>
-  <!-- Navbar -->
+
   <nav class="navbar navbar-dark px-3">
     <a class="navbar-brand fw-bold" href="#">🚗 SmartToll — User Dashboard</a>
     <div class="ms-auto">
@@ -78,220 +100,185 @@
     <h3>Welcome, {{ user.full_name }}</h3>
     <p>Email: {{ user.email }}</p>
 
-    <!-- Vehicle Table -->
-<div class="card mt-3 p-3">
-  <div class="d-flex justify-content-between align-items-center mb-3">
-    <h5 class="fw-bold mb-0">Your Vehicles</h5>
-    <a href="{{ url_for('register_vehicle') }}" class="btn btn-sm btn-primary">
-      ➕ Add Vehicle
-    </a>
-  </div>
+    <div class="card mt-3 p-3">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="fw-bold mb-0">Your Vehicles</h5>
+        <a href="{{ url_for('register_vehicle') }}" class="btn btn-sm btn-primary">➕ Add Vehicle</a>
+      </div>
 
-  {% if vehicles %}
-  <table class="table table-bordered align-middle">
-   <thead class="table-light">
-  <tr>
-    <th>Vehicle No</th>
-    <th>Owner</th>
-    <th>QR Code</th>
-    <th>Balance (₹)</th>
-    <th>Actions</th>
-  </tr>
-</thead>
+      {% if vehicles %}
+      <table class="table table-bordered align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>Vehicle No</th>
+            <th>Owner</th>
+            <th>QR Code</th>
+            <th>Balance (₹)</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
 
-    <tbody>
-      {% for v in vehicles %}
-   <tr class="vehicle-row" onclick="focusVehicle('{{ v.vehicle_no }}')">
+        <tbody>
+          {% for v in vehicles %}
+          <tr class="vehicle-row" onclick="focusVehicle('{{ v.vehicle_no }}')">
 
-  <!-- Vehicle No -->
-  <td class="fw-semibold">{{ v.vehicle_no }}</td>
+            <td class="fw-semibold">{{ v.vehicle_no }}</td>
+            <td>{{ v.owner_name }}</td>
 
-  <!-- Owner -->
-  <td>{{ v.owner_name }}</td>
+            <!-- ✅ FIXED QR CLICK -->
+            <td class="text-center">
+              <img
+                src="https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=http://192.168.0.103:5000/vehicle/{{ v.vehicle_no }}"
+                width="60" class="border rounded p-1 qr-thumb" onclick="openQR(event, '{{ v.vehicle_no }}')">
+              <div class="small text-primary">Click</div>
+            </td>
 
-  <!-- QR Code -->
-  <td>
-    {% if v.qr_path %}
-      <img src="/{{ v.qr_path }}"
-           alt="QR {{ v.vehicle_no }}"
-           width="60"
-           class="border rounded p-1">
-    {% else %}
-      <span class="text-muted">Not generated</span>
-    {% endif %}
-  </td>
+            <td class="fw-bold text-success">
+              ₹{{ "%.2f"|format(v.balance) }}
+            </td>
 
-  <!-- Balance -->
-  <td class="fw-bold text-success">
-    ₹{{ "%.2f"|format(v.balance) }}
-  </td>
+            <td class="d-flex justify-content-center gap-1 flex-wrap">
+              <a href="{{ url_for('user_history', vehicle_no=v.vehicle_no) }}" class="btn btn-sm btn-outline-primary">📜
+                History</a>
+              <a href="{{ url_for('wallet_add') }}" class="btn btn-sm btn-outline-success">💰 Balance</a>
+              <button class="btn btn-sm btn-outline-danger">📍 Track</button>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% endif %}
+    </div>
 
-  <!-- Actions -->
-  <td class="d-flex justify-content-center gap-1 flex-wrap">
-    <a href="{{ url_for('user_history', vehicle_no=v.vehicle_no) }}"
-       class="btn btn-sm btn-outline-primary">
-      📜 History
-    </a>
-
-    <a href="{{ url_for('wallet_add') }}"
-       class="btn btn-sm btn-outline-success">
-      💰 Balance
-    </a>
-
-    <button class="btn btn-sm btn-outline-danger"
-            onclick="focusVehicle('{{ v.vehicle_no }}')">
-      📍 Track
-    </button>
-  </td>
-</tr>
-
-      {% endfor %}
-    </tbody>
-  </table>
-  {% else %}
-  <p>No vehicles registered yet.</p>
-  {% endif %}
-</div>
-
-
-    <!-- Live Map -->
     <h5 class="mt-4 fw-bold text-dark">📍 Live Vehicle Tracking</h5>
     <div id="map"></div>
 
     <div class="legend mt-2">
-      <span><div class="color-box" style="background:#2563eb;"></div> Highway</span>
-      <span><div class="color-box" style="background:#22c55e;"></div> City Road</span>
-      <span><div class="color-box" style="background:#dc2626;"></div> Toll Zone</span>
-    </div>
-
-    <!-- Live Trip Summary -->
-    <div class="trip-summary">
-      <h6 class="fw-bold text-dark">🧭 Live Trip Summary</h6>
-      <p class="mb-1">Highway Distance: <span id="highwayDistance" class="fw-bold text-primary">0.00</span> km</p>
-      <p class="mb-1">City Distance: <span id="cityDistance" class="fw-bold text-success">0.00</span> km</p>
-      <p class="mb-1">Toll Zone Distance: <span id="tollDistance" class="fw-bold text-danger">0.00</span> km</p>
-      <p class="mt-2">💰 Fare Deducted (Highway Only): ₹<span id="fareDeducted" class="fw-bold text-danger">0.00</span></p>
+      <span>
+        <div class="color-box" style="background:#2563eb;"></div> Highway
+      </span>
+      <span>
+        <div class="color-box" style="background:#22c55e;"></div> City Road
+      </span>
+      <span>
+        <div class="color-box" style="background:#dc2626;"></div> Toll Zone
+      </span>
     </div>
   </div>
 
-  <!-- Socket.IO -->
+  <!-- QR MODAL -->
+  <div class="modal fade" id="qrModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content text-center p-3">
+        <h5 class="fw-bold">Vehicle QR Code</h5>
+        <p id="qrVehicleNo" class="text-muted"></p>
+        <img id="qrBig" class="img-fluid border rounded my-3" style="max-width:260px;">
+        <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+
   <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
+
+
   <script>
-    let map;
-    const markers = {};
-    const paths = {};
-    const distances = { highway: 0, city: 0, toll: 0 };
-    const fareRate = 2.5; // ₹ per km on highway
+    console.log(" USER DASHBOARD JS LOADED");
+  </script>
+ <script>
+let map;
+let directionsService;
 
-    function getRoadColor(roadName) {
-      if (!roadName) return "#6366f1";
-      const lower = roadName.toLowerCase();
-      if (lower.includes("highway")) return "#2563eb"; // blue
-      if (lower.includes("city") || lower.includes("local") || lower.includes("main")) return "#22c55e"; // green
-      if (lower.includes("toll")) return "#dc2626"; // red
-      return "#6366f1";
-    }
+const markers = {};
+const routePolylines = {};
 
-    function initMap() {
-      map = new google.maps.Map(document.getElementById("map"), {
-        center: { lat: 12.9716, lng: 77.5946 },
-        zoom: 7,
-        mapTypeId: "roadmap",
-      });
-      console.log("✅ Google Map initialized");
-    }
+function initMap() {
+  console.log("✅ initMap called");
 
-    const socket = io(window.location.origin, { transports: ["websocket"] });
+  map = new google.maps.Map(document.getElementById("map"), {
+    center: { lat: 12.9716, lng: 77.5946 },
+    zoom: 7,
+    mapTypeId: "roadmap",
+    gestureHandling: "greedy"
+  });
 
-    socket.on("connect", () => console.log("🟢 Connected to Socket.IO"));
-    socket.on("disconnect", () => console.log("🔴 Disconnected"));
+  directionsService = new google.maps.DirectionsService();
+}
 
-    socket.on("location_update", (data) => {
-      console.log("📍 Location Update:", data);
+// 🔥 SOCKET
+const socket = io(window.location.origin, {
+  transports: ["polling", "websocket"]
+});
 
-      const { vehicle_no, lat, lng, road_name } = data;
-      if (!vehicle_no || !lat || !lng) return;
+socket.on("connect", () => {
+  console.log("✅ SOCKET CONNECTED");
+});
 
-      const pos = new google.maps.LatLng(parseFloat(lat), parseFloat(lng));
-      const color = getRoadColor(road_name);
+socket.on("location_update", data => {
+  console.log("📍 UPDATE:", data);
 
-      // Create new marker if missing
-      if (!markers[vehicle_no]) {
-        markers[vehicle_no] = new google.maps.Marker({
-          position: pos,
-          map,
-          title: `${vehicle_no} (${road_name})`,
-          label: {
-            text: vehicle_no,
-            color: "#fff",
-            fontWeight: "bold",
-          },
-          icon: {
-            path: google.maps.SymbolPath.CIRCLE,
-            scale: 8,
-            fillColor: color,
-            fillOpacity: 1,
-            strokeWeight: 1,
-            strokeColor: "#fff",
-          },
-        });
+  const { vehicle_no, lat, lng } = data;
+  const pos = new google.maps.LatLng(lat, lng);
 
-        paths[vehicle_no] = new google.maps.Polyline({
-          path: [pos],
-          geodesic: true,
-          strokeColor: color,
-          strokeOpacity: 0.9,
-          strokeWeight: 5,
-          map,
-        });
-
-        map.setCenter(pos);
-      } else {
-        const path = paths[vehicle_no].getPath();
-        const prev = path.getAt(path.getLength() - 1);
-        const d = computeDistance(prev.lat(), prev.lng(), pos.lat(), pos.lng());
-
-        if (color === "#2563eb") distances.highway += d;
-        else if (color === "#22c55e") distances.city += d;
-        else if (color === "#dc2626") distances.toll += d;
-
-        path.push(pos);
-        markers[vehicle_no].setPosition(pos);
-        paths[vehicle_no].setOptions({ strokeColor: color });
-
-        // Update UI
-        document.getElementById("highwayDistance").innerText = distances.highway.toFixed(2);
-        document.getElementById("cityDistance").innerText = distances.city.toFixed(2);
-        document.getElementById("tollDistance").innerText = distances.toll.toFixed(2);
-        document.getElementById("fareDeducted").innerText = (distances.highway * fareRate).toFixed(2);
-
-        map.panTo(pos);
-      }
+  // First update
+  if (!markers[vehicle_no]) {
+    markers[vehicle_no] = new google.maps.Marker({
+      position: pos,
+      map,
+      title: vehicle_no
     });
 
-    function computeDistance(lat1, lon1, lat2, lon2) {
-      const R = 6371; // km
-      const dLat = (lat2 - lat1) * Math.PI / 180;
-      const dLon = (lon2 - lon1) * Math.PI / 180;
-      const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLon/2)**2;
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-      return R * c;
-    }
- 
-  function focusVehicle(vehicleNo) {
-    if (markers[vehicleNo]) {
-      map.panTo(markers[vehicleNo].getPosition());
-      map.setZoom(14);
-    } else {
-      alert("Live location not available yet for " + vehicleNo);
-    }
+    routePolylines[vehicle_no] = new google.maps.Polyline({
+      path: [pos],
+      geodesic: true,
+      strokeColor: "#2563eb",
+      strokeOpacity: 1.0,
+      strokeWeight: 5,
+      map
+    });
+
+    markers[vehicle_no]._lastPos = pos;
+    return;
   }
+
+  const origin = markers[vehicle_no]._lastPos;
+
+  // Snap to road and extend polyline
+  directionsService.route(
+    {
+      origin,
+      destination: pos,
+      travelMode: google.maps.TravelMode.DRIVING
+    },
+    (result, status) => {
+      if (status === "OK") {
+        const path = result.routes[0].overview_path;
+        const polyPath = routePolylines[vehicle_no].getPath();
+        path.forEach(p => polyPath.push(p));
+      }
+    }
+  );
+
+  markers[vehicle_no].setPosition(pos);
+  markers[vehicle_no]._lastPos = pos;
+});
+
+// ✅ QR FUNCTION MUST BE GLOBAL
+function openQR(event, vehicleNo) {
+  event.stopPropagation();
+  document.getElementById("qrVehicleNo").innerText = vehicleNo;
+  document.getElementById("qrBig").src =
+    "https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=" +
+    encodeURIComponent("http://192.168.0.103:5000/vehicle/" + vehicleNo);
+  new bootstrap.Modal(document.getElementById("qrModal")).show();
+}
 </script>
 
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDwHmT9VfKtdxVyvlO9FUCzbi87tpBWF6E&callback=initMap"
+    async defer></script>
 
-  <!-- Google Maps API -->
-  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDwHmT9VfKtdxVyvlO9FUCzbi87tpBWF6E&callback=initMap" async defer></script>
 </body>
+
 </html>
