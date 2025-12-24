@@ -179,73 +179,43 @@ def user_dashboard():
 @login_required()
 def user_history(vehicle_no):
     trips = list(trips_col.find({"vehicle_no": vehicle_no}))
-    return render_template(
-        "user_history.html",
-        trips=trips,
-        vehicle_no=vehicle_no,
-        google_api_key=GOOGLE_MAPS_API_KEY   # 🔴 THIS WAS MISSING
-    )
+    return render_template("user_history.html", trips=trips, vehicle_no=vehicle_no)
 
 
-
-# ---------- LIVE LOCATION API ----------
+# ---------- LIVE API ----------
 @app.route("/api/update_location", methods=["POST"])
 def api_update_location():
     data = request.get_json()
-
     pings_col.insert_one({
-        "vehicle_no": data["vehicle_no"],
-        "lat": data["lat"],
-        "lng": data["lng"],
-        "road_name": data.get("road_name"),
-        "timestamp": datetime.utcnow()
-    })
-
-    # ✅ ADDED: append GPS points to route
-    routes_col.update_one(
-        {"vehicle_no": data["vehicle_no"]},
-        {"$push": {"route": {"lat": data["lat"], "lng": data["lng"]}}},
-        upsert=True
-    )
+    "vehicle_no": data["vehicle_no"],
+    "lat": data["lat"],
+    "lng": data["lng"],
+    "road_name": data.get("road_name"),
+    "timestamp": datetime.utcnow()
+})
 
     socketio.emit("location_update", data)
     return jsonify({"status": "ok"})
 
 
-# ---------- TRIP SAVE ----------
 @app.route("/api/track_and_log", methods=["POST"])
 def track_and_log():
     data = request.get_json()
-
-    vehicle_no = data["vehicle_no"]
-    fare = float(data["total_fare"])
-
-    # 1️⃣ Save trip
     trips_col.insert_one({
-        "vehicle_no": vehicle_no,
-        "start": data["start_location"],
-        "end": data["end_location"],
+        "vehicle_no": data["vehicle_no"],
+        "start_location": data["start_location"],
+        "end_location": data["end_location"],
         "total_distance": data["total_distance"],
         "highway_distance": data["highway_distance"],
-        "fare": fare,
-        "date": datetime.utcnow().strftime("%Y-%m-%d"),
-        "time": datetime.utcnow().strftime("%H:%M:%S")
+        "fare": data["total_fare"],
+        "route": data["route"],
+        "created_at": datetime.utcnow()
     })
-
-    # 2️⃣ Deduct fare from wallet
-    vehicles_col.update_one(
-        {"vehicle_no": vehicle_no},
-        {"$inc": {"balance": -fare}}
-    )
-
-    return jsonify({
-        "status": "trip_saved",
-        "fare_deducted": fare
-    })
+    return jsonify({"status": "trip_saved"})
 
 
 
-# ---------- QR PROFILE ----------
+# ---------- QR SCAN VEHICLE PROFILE (FIXED) ----------
 @app.route("/vehicle/<vehicle_no>")
 def vehicle_profile(vehicle_no):
     vehicle = vehicles_col.find_one({"vehicle_no": vehicle_no.upper()})
