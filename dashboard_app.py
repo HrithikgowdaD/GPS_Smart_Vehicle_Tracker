@@ -16,26 +16,47 @@ from flask_pymongo import PyMongo
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_socketio import SocketIO
 import qrcode
+from geopy.distance import geodesic
+import razorpay
+
+
 
 
 # ---------------- CONFIG ----------------
 app = Flask(__name__)
-app.config["MONGO_URI"] = "mongodb://localhost:27017/toll_dashboard"
+app.config["MONGO_URI"] = (
+    "mongodb+srv://GPS-Smart-Toll:GPSSMARTTOLL@gps-smarttoll.cowontb.mongodb.net/toll_dashboard?retryWrites=true&w=majority"
+)
 app.config["SECRET_KEY"] = "change_this_secret"
 
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading")
-mongo = PyMongo(app)
+RAZORPAY_KEY_ID="rzp_test_R5GGG4tXm6F1KD"
+RAZORPAY_KEY_SECRET="GLINKefe1fj8SuRkK2J5YMur"
 
-# Collections
-users_col = mongo.db.users
-vehicles_col = mongo.db.vehicles
-trips_col = mongo.db.trips
-pings_col = mongo.db.live_pings
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading")
+mongo = PyMongo()
+mongo.init_app(app)
+
+print("Mongo DB:", mongo.db)    
+
+# Access collections AFTER app init
+users_col = mongo.db["users"]
+vehicles_col = mongo.db["vehicles"]
+trips_col = mongo.db["trips"]
+pings_col = mongo.db["live_pings"]
+
+razorpay_client = razorpay.Client(
+    auth=(RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET)
+)
+
+
+
+
 
 GOOGLE_MAPS_API_KEY = "AIzaSyDwHmT9VfKtdxVyvlO9FUCzbi87tpBWF6E"
 
 
 # ---------------- HELPERS ----------------
+
 def login_required(role=None):
     def decorator(f):
         @wraps(f)
@@ -156,19 +177,90 @@ def wallet_submit():
     )
     return redirect(url_for("user_dashboard"))
 
+@app.route("/wallet/create-order", methods=["POST"])
+@login_required()
+def create_order():
+    data = request.get_json()
+    amount = int(float(data["amount"]) * 100)  # ₹ → paise
+    vehicle_no = data["vehicle_no"]
+
+    order = razorpay_client.order.create({
+        "amount": amount,
+        "currency": "INR",
+        "payment_capture": 1
+    })
+
+    return jsonify({
+        "order_id": order["id"],
+        "amount": amount,
+        "key": RAZORPAY_KEY_ID,
+        "vehicle_no": vehicle_no
+    })
+
+
+@app.route("/wallet/verify", methods=["POST"])
+@login_required()
+def verify_payment():
+    data = request.get_json()
+
+    params_dict = {
+        "razorpay_order_id": data["razorpay_order_id"],
+        "razorpay_payment_id": data["razorpay_payment_id"],
+        "razorpay_signature": data["razorpay_signature"]
+    }
+
+    try:
+        razorpay_client.utility.verify_payment_signature(params_dict)
+    except:
+        return jsonify({"status": "failed"}), 400
+
+    # ✅ Payment verified → update balance
+    vehicles_col.update_one(
+        {"vehicle_no": data["vehicle_no"]},
+        {"$inc": {"balance": float(data["amount"])}}
+    )
+
+    return jsonify({"status": "success"})
+
+
 
 # ---------- User Dashboard ----------
 @app.route("/user_dashboard")
 @login_required()
 def user_dashboard():
     user = users_col.find_one({"_id": ObjectId(session["user_id"])})
-    vehicles = list(vehicles_col.find({"phone": user["phone"]}))
+
+    if user["role"] == "developer":
+    # 🔥 Developer sees ALL vehicles
+        vehicles = list(vehicles_col.find())
+    else:
+    # 👤 Normal user sees only their vehicles
+        vehicles = list(vehicles_col.find({"phone": user["phone"]}))
+
     return render_template(
         "user_dashboard.html",
         user=user,
         vehicles=vehicles,
         google_api_key=GOOGLE_MAPS_API_KEY
     )
+
+
+@app.route("/vehicle/delete/<vehicle_no>", methods=["POST"])
+@login_required(role="developer")
+def delete_vehicle(vehicle_no):
+    vehicle_no = vehicle_no.upper()
+
+    # Delete vehicle
+    vehicles_col.delete_one({"vehicle_no": vehicle_no})
+
+    # Delete related trips
+    trips_col.delete_many({"vehicle_no": vehicle_no})
+
+    # Delete live pings
+    pings_col.delete_many({"vehicle_no": vehicle_no})
+
+    flash(f"Vehicle {vehicle_no} deleted successfully.", "success")
+    return redirect(url_for("user_dashboard"))
 
 
 # ---------- Trip History ----------
@@ -180,35 +272,163 @@ def user_history(vehicle_no):
 
 
 # ---------- LIVE API ----------
+# @app.route("/api/update_location", methods=["POST"])
+# def api_update_location():
+#     data = request.get_json()
+#     pings_col.insert_one({
+#     "vehicle_no": data["vehicle_no"],
+#     "lat": data["lat"],
+#     "lng": data["lng"],
+#     "road_name": data.get("road_name"),
+#     "timestamp": datetime.utcnow()
+# })
+
+#     socketio.emit("location_update", data)
+#     return jsonify({"status": "ok"})
+
 @app.route("/api/update_location", methods=["POST"])
 def api_update_location():
     data = request.get_json()
+    vehicle_no = data["vehicle_no"]
+
     pings_col.insert_one({
-    "vehicle_no": data["vehicle_no"],
-    "lat": data["lat"],
-    "lng": data["lng"],
-    "road_name": data.get("road_name"),
-    "timestamp": datetime.utcnow()
-})
+        "vehicle_no": vehicle_no,
+        "lat": data["lat"],
+        "lng": data["lng"],
+        "timestamp": datetime.utcnow()
+    })
+
+    # 🔥 AUTO END TRIP CHECK
+    if check_auto_trip_end(vehicle_no):
+        process_trip(vehicle_no)
 
     socketio.emit("location_update", data)
     return jsonify({"status": "ok"})
 
 
+
+# @app.route("/api/track_and_log", methods=["POST"])
+# def track_and_log():
+#     data = request.get_json()
+#     trips_col.insert_one({
+#         "vehicle_no": data["vehicle_no"],
+#         "start_location": data["start_location"],
+#         "end_location": data["end_location"],
+#         "total_distance": data["total_distance"],
+#         "highway_distance": data["highway_distance"],
+#         "fare": data["total_fare"],
+#         "route": data["route"],
+#         "created_at": datetime.utcnow()
+#     })
+#     return jsonify({"status": "trip_saved"})
+def process_trip(vehicle_no):
+    pings = list(
+        pings_col.find({"vehicle_no": vehicle_no}).sort("timestamp", 1)
+    )
+
+    if len(pings) < 2:
+        return None
+
+    total_distance = 0
+    highway_distance = 0
+    route = []
+
+    for i in range(1, len(pings)):
+        p1 = pings[i - 1]
+        p2 = pings[i]
+
+        dist = geodesic(
+            (p1["lat"], p1["lng"]),
+            (p2["lat"], p2["lng"])
+        ).km
+
+        total_distance += dist
+        highway_distance += dist  # simplified
+
+        route.append({
+            "lat": p2["lat"],
+            "lng": p2["lng"]
+        })
+
+    fare = round(highway_distance * 2.5, 2)
+
+    trips_col.insert_one({
+        "vehicle_no": vehicle_no,
+        "total_distance": round(total_distance, 2),
+        "highway_distance": round(highway_distance, 2),
+        "fare": fare,
+        "route": route,
+        "created_at": datetime.utcnow()
+    })
+
+    vehicles_col.update_one(
+        {"vehicle_no": vehicle_no},
+        {"$inc": {"balance": -fare}}
+    )
+
+    pings_col.delete_many({"vehicle_no": vehicle_no})
+
+    return fare
+
+
+from datetime import timedelta
+
+STOP_TIME_THRESHOLD = timedelta(minutes=5)
+STOP_DISTANCE_THRESHOLD = 0.03  # km = 30 meters
+
+
+def check_auto_trip_end(vehicle_no):
+    pings = list(
+        pings_col.find({"vehicle_no": vehicle_no})
+        .sort("timestamp", -1)
+        .limit(5)
+    )
+
+    if len(pings) < 2:
+        return False
+
+    # 1️⃣ Check time gap
+    now = datetime.utcnow()
+    last_ping_time = pings[0]["timestamp"]
+
+    if now - last_ping_time > STOP_TIME_THRESHOLD:
+        return True
+
+    # 2️⃣ Check movement
+    total_movement = 0
+    for i in range(len(pings) - 1):
+        p1 = pings[i]
+        p2 = pings[i + 1]
+
+        dist = geodesic(
+            (p1["lat"], p1["lng"]),
+            (p2["lat"], p2["lng"])
+        ).km
+
+        total_movement += dist
+
+    if total_movement < STOP_DISTANCE_THRESHOLD:
+        return True
+
+    return False
+
+
+
 @app.route("/api/track_and_log", methods=["POST"])
 def track_and_log():
     data = request.get_json()
-    trips_col.insert_one({
-        "vehicle_no": data["vehicle_no"],
-        "start_location": data["start_location"],
-        "end_location": data["end_location"],
-        "total_distance": data["total_distance"],
-        "highway_distance": data["highway_distance"],
-        "fare": data["total_fare"],
-        "route": data["route"],
-        "created_at": datetime.utcnow()
+    vehicle_no = data["vehicle_no"]
+
+    fare = process_trip(vehicle_no)
+
+    if not fare:
+        return jsonify({"error": "Not enough data"}), 400
+
+    return jsonify({
+        "status": "trip_completed",
+        "fare": fare
     })
-    return jsonify({"status": "trip_saved"})
+
 
 
 
