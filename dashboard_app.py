@@ -36,6 +36,12 @@ socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading")
 mongo = PyMongo()
 mongo.init_app(app)
 
+# ---------------- HARDWARE MAPPING ----------------
+HARDWARE_VEHICLE_MAP = {
+    "GPS_UNIT_001": "KA19MH8521"  # evaluator demo vehicle
+}
+
+
 print("Mongo DB:", mongo.db)    
 
 # Access collections AFTER app init
@@ -303,6 +309,35 @@ def api_update_location():
         process_trip(vehicle_no)
 
     socketio.emit("location_update", data)
+    return jsonify({"status": "ok"})
+
+
+@app.route("/api/hw/ping", methods=["POST"])
+def hw_ping():
+    data = request.get_json()
+
+    device_id = data.get("device_id")
+    lat = float(data.get("lat"))
+    lng = float(data.get("lng"))
+
+    vehicle_no = HARDWARE_VEHICLE_MAP.get(device_id)
+    if not vehicle_no:
+        return jsonify({"error": "Unknown device"}), 400
+
+    ping = {
+        "vehicle_no": vehicle_no,
+        "lat": lat,
+        "lng": lng,
+        "timestamp": datetime.utcnow()
+    }
+
+    pings_col.insert_one(ping)
+
+    # 🔥 Reuse your EXISTING auto-trip logic
+    if check_auto_trip_end(vehicle_no):
+        process_trip(vehicle_no)
+
+    socketio.emit("location_update", ping)
     return jsonify({"status": "ok"})
 
 
