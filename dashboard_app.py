@@ -181,6 +181,24 @@ def user_dashboard():
     )
 
 
+@app.route("/vehicle/delete/<vehicle_no>", methods=["POST"])
+@login_required(role="developer")
+def delete_vehicle(vehicle_no):
+    vehicle_no = vehicle_no.upper()
+
+    # Delete vehicle
+    vehicles_col.delete_one({"vehicle_no": vehicle_no})
+
+    # Delete related trips
+    trips_col.delete_many({"vehicle_no": vehicle_no})
+
+    # Delete live pings
+    pings_col.delete_many({"vehicle_no": vehicle_no})
+
+    flash(f"Vehicle {vehicle_no} deleted successfully.", "success")
+    return redirect(url_for("user_dashboard"))
+
+
 # ---------- Trip History ----------
 @app.route("/user/history/<vehicle_no>")
 @login_required()
@@ -190,19 +208,39 @@ def user_history(vehicle_no):
 
 
 # ---------- LIVE API ----------
+# @app.route("/api/update_location", methods=["POST"])
+# def api_update_location():
+#     data = request.get_json()
+#     pings_col.insert_one({
+#     "vehicle_no": data["vehicle_no"],
+#     "lat": data["lat"],
+#     "lng": data["lng"],
+#     "road_name": data.get("road_name"),
+#     "timestamp": datetime.utcnow()
+# })
+
+#     socketio.emit("location_update", data)
+#     return jsonify({"status": "ok"})
+
 @app.route("/api/update_location", methods=["POST"])
 def api_update_location():
     data = request.get_json()
+    vehicle_no = data["vehicle_no"]
+
     pings_col.insert_one({
-    "vehicle_no": data["vehicle_no"],
-    "lat": data["lat"],
-    "lng": data["lng"],
-    "road_name": data.get("road_name"),
-    "timestamp": datetime.utcnow()
-})
+        "vehicle_no": vehicle_no,
+        "lat": data["lat"],
+        "lng": data["lng"],
+        "timestamp": datetime.utcnow()
+    })
+
+    # 🔥 AUTO END TRIP CHECK
+    if check_auto_trip_end(vehicle_no):
+        process_trip(vehicle_no)
 
     socketio.emit("location_update", data)
     return jsonify({"status": "ok"})
+
 
 
 # @app.route("/api/track_and_log", methods=["POST"])
@@ -267,6 +305,49 @@ def process_trip(vehicle_no):
     pings_col.delete_many({"vehicle_no": vehicle_no})
 
     return fare
+
+
+from datetime import timedelta
+
+STOP_TIME_THRESHOLD = timedelta(minutes=5)
+STOP_DISTANCE_THRESHOLD = 0.03  # km = 30 meters
+
+
+def check_auto_trip_end(vehicle_no):
+    pings = list(
+        pings_col.find({"vehicle_no": vehicle_no})
+        .sort("timestamp", -1)
+        .limit(5)
+    )
+
+    if len(pings) < 2:
+        return False
+
+    # 1️⃣ Check time gap
+    now = datetime.utcnow()
+    last_ping_time = pings[0]["timestamp"]
+
+    if now - last_ping_time > STOP_TIME_THRESHOLD:
+        return True
+
+    # 2️⃣ Check movement
+    total_movement = 0
+    for i in range(len(pings) - 1):
+        p1 = pings[i]
+        p2 = pings[i + 1]
+
+        dist = geodesic(
+            (p1["lat"], p1["lng"]),
+            (p2["lat"], p2["lng"])
+        ).km
+
+        total_movement += dist
+
+    if total_movement < STOP_DISTANCE_THRESHOLD:
+        return True
+
+    return False
+
 
 
 @app.route("/api/track_and_log", methods=["POST"])

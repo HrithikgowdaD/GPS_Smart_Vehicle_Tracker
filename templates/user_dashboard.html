@@ -145,11 +145,26 @@
             </td>
 
             <td class="d-flex justify-content-center gap-1 flex-wrap">
+
               <a href="{{ url_for('user_history', vehicle_no=v.vehicle_no) }}" class="btn btn-sm btn-outline-primary">📜
                 History</a>
+
               <a href="{{ url_for('wallet_add') }}" class="btn btn-sm btn-outline-success">💰 Balance</a>
+
               <button class="btn btn-sm btn-outline-danger">📍 Track</button>
+
+              {% if user.role == "developer" %}
+              <form action="{{ url_for('delete_vehicle', vehicle_no=v.vehicle_no) }}" method="POST"
+                style="display:inline;" onsubmit="return confirm('Are you sure you want to delete this vehicle?');">
+
+                <button type="submit" class="btn btn-sm btn-danger">
+                  🗑 Delete
+                </button>
+              </form>
+              {% endif %}
+
             </td>
+
           </tr>
           {% endfor %}
         </tbody>
