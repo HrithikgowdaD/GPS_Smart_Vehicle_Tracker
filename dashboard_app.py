@@ -17,22 +17,40 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from flask_socketio import SocketIO
 import qrcode
 from geopy.distance import geodesic
+import razorpay
+
 
 
 
 # ---------------- CONFIG ----------------
 app = Flask(__name__)
-app.config["MONGO_URI"] = "mongodb://localhost:27017/toll_dashboard"
+app.config["MONGO_URI"] = (
+    "mongodb+srv://GPS-Smart-Toll:GPSSMARTTOLL@gps-smarttoll.cowontb.mongodb.net/toll_dashboard?retryWrites=true&w=majority"
+)
 app.config["SECRET_KEY"] = "change_this_secret"
 
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading")
-mongo = PyMongo(app)
+RAZORPAY_KEY_ID="rzp_test_R5GGG4tXm6F1KD"
+RAZORPAY_KEY_SECRET="GLINKefe1fj8SuRkK2J5YMur"
 
-# Collections
-users_col = mongo.db.users
-vehicles_col = mongo.db.vehicles
-trips_col = mongo.db.trips
-pings_col = mongo.db.live_pings
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading")
+mongo = PyMongo()
+mongo.init_app(app)
+
+print("Mongo DB:", mongo.db)    
+
+# Access collections AFTER app init
+users_col = mongo.db["users"]
+vehicles_col = mongo.db["vehicles"]
+trips_col = mongo.db["trips"]
+pings_col = mongo.db["live_pings"]
+
+razorpay_client = razorpay.Client(
+    auth=(RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET)
+)
+
+
+
+
 
 GOOGLE_MAPS_API_KEY = "AIzaSyDwHmT9VfKtdxVyvlO9FUCzbi87tpBWF6E"
 
@@ -158,6 +176,52 @@ def wallet_submit():
         {"$inc": {"balance": float(request.form["amount"])}}
     )
     return redirect(url_for("user_dashboard"))
+
+@app.route("/wallet/create-order", methods=["POST"])
+@login_required()
+def create_order():
+    data = request.get_json()
+    amount = int(float(data["amount"]) * 100)  # ₹ → paise
+    vehicle_no = data["vehicle_no"]
+
+    order = razorpay_client.order.create({
+        "amount": amount,
+        "currency": "INR",
+        "payment_capture": 1
+    })
+
+    return jsonify({
+        "order_id": order["id"],
+        "amount": amount,
+        "key": RAZORPAY_KEY_ID,
+        "vehicle_no": vehicle_no
+    })
+
+
+@app.route("/wallet/verify", methods=["POST"])
+@login_required()
+def verify_payment():
+    data = request.get_json()
+
+    params_dict = {
+        "razorpay_order_id": data["razorpay_order_id"],
+        "razorpay_payment_id": data["razorpay_payment_id"],
+        "razorpay_signature": data["razorpay_signature"]
+    }
+
+    try:
+        razorpay_client.utility.verify_payment_signature(params_dict)
+    except:
+        return jsonify({"status": "failed"}), 400
+
+    # ✅ Payment verified → update balance
+    vehicles_col.update_one(
+        {"vehicle_no": data["vehicle_no"]},
+        {"$inc": {"balance": float(data["amount"])}}
+    )
+
+    return jsonify({"status": "success"})
+
 
 
 # ---------- User Dashboard ----------
