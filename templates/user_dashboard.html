@@ -78,19 +78,26 @@
     }
 
     #map {
-  height: 450px !important;
-  width: 100% !important;
-  min-height: 450px;
-  background: #e5e7eb; /* debug fallback */
-}
-
+      height: 450px !important;
+      width: 100% !important;
+      min-height: 450px;
+      background: #e5e7eb;
+      /* debug fallback */
+    }
   </style>
 </head>
 
 <body>
 
   <nav class="navbar navbar-dark px-3">
-    <a class="navbar-brand fw-bold" href="#">🚗 SmartToll — User Dashboard</a>
+    <a class="navbar-brand fw-bold" href="#">
+      🚗 SmartToll —
+      {% if user.role == "developer" %}
+      Developer Dashboard
+      {% else %}
+      User Dashboard
+      {% endif %}
+    </a>
     <div class="ms-auto">
       <a href="/logout" class="btn btn-outline-light btn-sm">Logout</a>
     </div>
@@ -187,94 +194,94 @@
   <script>
     console.log(" USER DASHBOARD JS LOADED");
   </script>
- <script>
-let map;
-let directionsService;
+  <script>
+    let map;
+    let directionsService;
 
-const markers = {};
-const routePolylines = {};
+    const markers = {};
+    const routePolylines = {};
 
-function initMap() {
-  console.log("✅ initMap called");
+    function initMap() {
+      console.log("✅ initMap called");
 
-  map = new google.maps.Map(document.getElementById("map"), {
-    center: { lat: 12.9716, lng: 77.5946 },
-    zoom: 7,
-    mapTypeId: "roadmap",
-    gestureHandling: "greedy"
-  });
+      map = new google.maps.Map(document.getElementById("map"), {
+        center: { lat: 12.9716, lng: 77.5946 },
+        zoom: 7,
+        mapTypeId: "roadmap",
+        gestureHandling: "greedy"
+      });
 
-  directionsService = new google.maps.DirectionsService();
-}
-
-// 🔥 SOCKET
-const socket = io(window.location.origin, {
-  transports: ["polling", "websocket"]
-});
-
-socket.on("connect", () => {
-  console.log("✅ SOCKET CONNECTED");
-});
-
-socket.on("location_update", data => {
-  console.log("📍 UPDATE:", data);
-
-  const { vehicle_no, lat, lng } = data;
-  const pos = new google.maps.LatLng(lat, lng);
-
-  // First update
-  if (!markers[vehicle_no]) {
-    markers[vehicle_no] = new google.maps.Marker({
-      position: pos,
-      map,
-      title: vehicle_no
-    });
-
-    routePolylines[vehicle_no] = new google.maps.Polyline({
-      path: [pos],
-      geodesic: true,
-      strokeColor: "#2563eb",
-      strokeOpacity: 1.0,
-      strokeWeight: 5,
-      map
-    });
-
-    markers[vehicle_no]._lastPos = pos;
-    return;
-  }
-
-  const origin = markers[vehicle_no]._lastPos;
-
-  // Snap to road and extend polyline
-  directionsService.route(
-    {
-      origin,
-      destination: pos,
-      travelMode: google.maps.TravelMode.DRIVING
-    },
-    (result, status) => {
-      if (status === "OK") {
-        const path = result.routes[0].overview_path;
-        const polyPath = routePolylines[vehicle_no].getPath();
-        path.forEach(p => polyPath.push(p));
-      }
+      directionsService = new google.maps.DirectionsService();
     }
-  );
 
-  markers[vehicle_no].setPosition(pos);
-  markers[vehicle_no]._lastPos = pos;
-});
+    // 🔥 SOCKET
+    const socket = io(window.location.origin, {
+      transports: ["polling", "websocket"]
+    });
 
-// ✅ QR FUNCTION MUST BE GLOBAL
-function openQR(event, vehicleNo) {
-  event.stopPropagation();
-  document.getElementById("qrVehicleNo").innerText = vehicleNo;
-  document.getElementById("qrBig").src =
-    "https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=" +
-    encodeURIComponent("http://192.168.0.103:5000/vehicle/" + vehicleNo);
-  new bootstrap.Modal(document.getElementById("qrModal")).show();
-}
-</script>
+    socket.on("connect", () => {
+      console.log("✅ SOCKET CONNECTED");
+    });
+
+    socket.on("location_update", data => {
+      console.log("📍 UPDATE:", data);
+
+      const { vehicle_no, lat, lng } = data;
+      const pos = new google.maps.LatLng(lat, lng);
+
+      // First update
+      if (!markers[vehicle_no]) {
+        markers[vehicle_no] = new google.maps.Marker({
+          position: pos,
+          map,
+          title: vehicle_no
+        });
+
+        routePolylines[vehicle_no] = new google.maps.Polyline({
+          path: [pos],
+          geodesic: true,
+          strokeColor: "#2563eb",
+          strokeOpacity: 1.0,
+          strokeWeight: 5,
+          map
+        });
+
+        markers[vehicle_no]._lastPos = pos;
+        return;
+      }
+
+      const origin = markers[vehicle_no]._lastPos;
+
+      // Snap to road and extend polyline
+      directionsService.route(
+        {
+          origin,
+          destination: pos,
+          travelMode: google.maps.TravelMode.DRIVING
+        },
+        (result, status) => {
+          if (status === "OK") {
+            const path = result.routes[0].overview_path;
+            const polyPath = routePolylines[vehicle_no].getPath();
+            path.forEach(p => polyPath.push(p));
+          }
+        }
+      );
+
+      markers[vehicle_no].setPosition(pos);
+      markers[vehicle_no]._lastPos = pos;
+    });
+
+    // ✅ QR FUNCTION MUST BE GLOBAL
+    function openQR(event, vehicleNo) {
+      event.stopPropagation();
+      document.getElementById("qrVehicleNo").innerText = vehicleNo;
+      document.getElementById("qrBig").src =
+        "https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=" +
+        encodeURIComponent("http://192.168.0.103:5000/vehicle/" + vehicleNo);
+      new bootstrap.Modal(document.getElementById("qrModal")).show();
+    }
+  </script>
 
   <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDwHmT9VfKtdxVyvlO9FUCzbi87tpBWF6E&callback=initMap"
     async defer></script>

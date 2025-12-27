@@ -16,6 +16,8 @@ from flask_pymongo import PyMongo
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_socketio import SocketIO
 import qrcode
+from geopy.distance import geodesic
+
 
 
 # ---------------- CONFIG ----------------
@@ -36,6 +38,7 @@ GOOGLE_MAPS_API_KEY = "AIzaSyDwHmT9VfKtdxVyvlO9FUCzbi87tpBWF6E"
 
 
 # ---------------- HELPERS ----------------
+
 def login_required(role=None):
     def decorator(f):
         @wraps(f)
@@ -162,7 +165,14 @@ def wallet_submit():
 @login_required()
 def user_dashboard():
     user = users_col.find_one({"_id": ObjectId(session["user_id"])})
-    vehicles = list(vehicles_col.find({"phone": user["phone"]}))
+
+    if user["role"] == "developer":
+    # 🔥 Developer sees ALL vehicles
+        vehicles = list(vehicles_col.find())
+    else:
+    # 👤 Normal user sees only their vehicles
+        vehicles = list(vehicles_col.find({"phone": user["phone"]}))
+
     return render_template(
         "user_dashboard.html",
         user=user,
@@ -195,20 +205,85 @@ def api_update_location():
     return jsonify({"status": "ok"})
 
 
+# @app.route("/api/track_and_log", methods=["POST"])
+# def track_and_log():
+#     data = request.get_json()
+#     trips_col.insert_one({
+#         "vehicle_no": data["vehicle_no"],
+#         "start_location": data["start_location"],
+#         "end_location": data["end_location"],
+#         "total_distance": data["total_distance"],
+#         "highway_distance": data["highway_distance"],
+#         "fare": data["total_fare"],
+#         "route": data["route"],
+#         "created_at": datetime.utcnow()
+#     })
+#     return jsonify({"status": "trip_saved"})
+def process_trip(vehicle_no):
+    pings = list(
+        pings_col.find({"vehicle_no": vehicle_no}).sort("timestamp", 1)
+    )
+
+    if len(pings) < 2:
+        return None
+
+    total_distance = 0
+    highway_distance = 0
+    route = []
+
+    for i in range(1, len(pings)):
+        p1 = pings[i - 1]
+        p2 = pings[i]
+
+        dist = geodesic(
+            (p1["lat"], p1["lng"]),
+            (p2["lat"], p2["lng"])
+        ).km
+
+        total_distance += dist
+        highway_distance += dist  # simplified
+
+        route.append({
+            "lat": p2["lat"],
+            "lng": p2["lng"]
+        })
+
+    fare = round(highway_distance * 2.5, 2)
+
+    trips_col.insert_one({
+        "vehicle_no": vehicle_no,
+        "total_distance": round(total_distance, 2),
+        "highway_distance": round(highway_distance, 2),
+        "fare": fare,
+        "route": route,
+        "created_at": datetime.utcnow()
+    })
+
+    vehicles_col.update_one(
+        {"vehicle_no": vehicle_no},
+        {"$inc": {"balance": -fare}}
+    )
+
+    pings_col.delete_many({"vehicle_no": vehicle_no})
+
+    return fare
+
+
 @app.route("/api/track_and_log", methods=["POST"])
 def track_and_log():
     data = request.get_json()
-    trips_col.insert_one({
-        "vehicle_no": data["vehicle_no"],
-        "start_location": data["start_location"],
-        "end_location": data["end_location"],
-        "total_distance": data["total_distance"],
-        "highway_distance": data["highway_distance"],
-        "fare": data["total_fare"],
-        "route": data["route"],
-        "created_at": datetime.utcnow()
+    vehicle_no = data["vehicle_no"]
+
+    fare = process_trip(vehicle_no)
+
+    if not fare:
+        return jsonify({"error": "Not enough data"}), 400
+
+    return jsonify({
+        "status": "trip_completed",
+        "fare": fare
     })
-    return jsonify({"status": "trip_saved"})
+
 
 
 
