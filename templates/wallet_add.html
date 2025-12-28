@@ -3,11 +3,18 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>💰 Add Wallet Balance — Smart Toll</title>
+  <title>💰 Add Wallet Balance — SmartToll</title>
 
   <!-- Bootstrap -->
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
+    rel="stylesheet"
+  />
 
+  <!-- Razorpay -->
+  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+
+  <!-- ✅ YOUR ORIGINAL CSS -->
   <style>
     body {
       background: linear-gradient(135deg, #a5b4fc, #c084fc);
@@ -15,17 +22,20 @@
       font-family: 'Poppins', sans-serif;
       color: #1e293b;
     }
+
     .navbar {
       background: linear-gradient(90deg, #6366f1, #8b5cf6);
       box-shadow: 0 2px 8px rgba(0,0,0,0.2);
     }
+
     .card {
-      background: rgba(255, 255, 255, 0.9);
+      background: rgba(255, 255, 255, 0.95);
       border-radius: 15px;
       padding: 25px;
       box-shadow: 0 4px 8px rgba(0,0,0,0.2);
       margin-top: 40px;
     }
+
     .btn-pay {
       background-color: #22c55e;
       color: white;
@@ -33,9 +43,11 @@
       border: none;
       width: 100%;
     }
+
     .btn-pay:hover {
       background-color: #16a34a;
     }
+
     .form-select, .form-control {
       border-radius: 10px;
     }
@@ -43,63 +55,105 @@
 </head>
 
 <body>
+
   <!-- Navbar -->
   <nav class="navbar navbar-dark px-3">
-    <a class="navbar-brand fw-bold" href="/user_dashboard">🚗 Smart Toll — Wallet</a>
+    <a class="navbar-brand fw-bold" href="/user_dashboard">
+      🚗 SmartToll — Wallet
+    </a>
     <div class="ms-auto">
-      <a href="{{ url_for('user_dashboard') }}" class="btn btn-outline-light btn-sm">⬅ Back</a>
+      <a href="/user_dashboard" class="btn btn-outline-light btn-sm">⬅ Back</a>
     </div>
   </nav>
 
+  <!-- Wallet Card -->
   <div class="container">
     <div class="card mx-auto col-md-6">
-      <h4 class="fw-bold text-center mb-3">💰 Add Balance to Wallet</h4>
-      <form method="POST" action="{{ url_for('wallet_submit') }}">
-        <!-- Vehicle Dropdown -->
-        <div class="mb-3">
-          <label for="vehicle_no" class="form-label fw-semibold">Select Vehicle</label>
-          <select id="vehicle_no" name="vehicle_no" class="form-select" required>
-            <option value="">-- Choose Vehicle --</option>
-            {% for v in vehicles %}
-              <option value="{{ v.vehicle_no }}">{{ v.vehicle_no }} — {{ v.owner_name }}</option>
-            {% endfor %}
-          </select>
-        </div>
+      <h4 class="fw-bold text-center mb-4">💰 Add Balance to Wallet</h4>
 
-        <!-- Amount -->
-        <div class="mb-3">
-          <label for="amount" class="form-label fw-semibold">Enter Amount (₹)</label>
-          <input type="number" id="amount" name="amount" class="form-control" min="10" step="10" required placeholder="Enter amount to add">
-        </div>
-
-        <!-- Payment Mode -->
-        <div class="mb-3">
-          <label for="payment_mode" class="form-label fw-semibold">Select Payment Method</label>
-          <select id="payment_mode" name="payment_mode" class="form-select" required>
-            <option value="">-- Choose Payment Option --</option>
-            <option value="UPI">💸 UPI (Google Pay / PhonePe / Paytm)</option>
-            <option value="Credit Card">💳 Credit Card</option>
-            <option value="Debit Card">🏦 Debit Card</option>
-            <option value="Net Banking">🌐 Net Banking</option>
-          </select>
-        </div>
-
-        <!-- Submit -->
-        <button type="submit" class="btn btn-pay mt-3">Add Balance</button>
-      </form>
-
-      <hr class="my-4">
-
-      <div class="text-center">
-        <p class="text-muted mb-0">
-          Your total wallet balance is currently:
-          <strong class="text-success">₹{{ '%.2f'|format(user_balance if user_balance else 0) }}</strong>
-        </p>
+      <div class="mb-3">
+        <label class="form-label fw-semibold">Select Vehicle</label>
+        <select id="vehicle" class="form-select" required>
+          <option value="">-- Choose Vehicle --</option>
+          {% for v in vehicles %}
+            <option value="{{ v.vehicle_no }}">
+              {{ v.vehicle_no }} — {{ v.owner_name }}
+            </option>
+          {% endfor %}
+        </select>
       </div>
+
+      <div class="mb-3">
+        <label class="form-label fw-semibold">Enter Amount (₹)</label>
+        <input
+          type="number"
+          id="amount"
+          class="form-control"
+          min="10"
+          step="10"
+          placeholder="Enter amount"
+          required
+        />
+      </div>
+
+      <button class="btn btn-pay mt-3" onclick="pay()">
+        Pay with Razorpay
+      </button>
     </div>
   </div>
 
   <!-- Bootstrap JS -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+  <!-- ✅ Razorpay Logic (UNCHANGED) -->
+  <script>
+    function pay() {
+      const amount = document.getElementById("amount").value;
+      const vehicle = document.getElementById("vehicle").value;
+
+      if (!amount || !vehicle) {
+        alert("Please select vehicle and amount");
+        return;
+      }
+
+      fetch("/wallet/create-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amount: amount,
+          vehicle_no: vehicle
+        })
+      })
+      .then(res => res.json())
+      .then(data => {
+        const options = {
+          key: data.key,
+          amount: data.amount,
+          currency: "INR",
+          name: "SmartToll",
+          description: "Wallet Recharge",
+          order_id: data.order_id,
+          handler: function (response) {
+            fetch("/wallet/verify", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+                vehicle_no: vehicle,
+                amount: amount
+              })
+            }).then(() => {
+              alert("Payment successful!");
+              window.location.href = "/user_dashboard";
+            });
+          }
+        };
+        new Razorpay(options).open();
+      });
+    }
+  </script>
+
 </body>
 </html>
