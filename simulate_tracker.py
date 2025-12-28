@@ -77,9 +77,10 @@ def simulate_vehicle(vehicle_no, delay=2):
 
         # ✅ SAVE ROUTE POINT
         route_points.append({
-            "lat": curr[0],
-            "lng": curr[1]
-        })
+    "lat": point["lat"],
+    "lng": point["lng"]
+})
+
 
         requests.post(API_URL, json=payload)
         print(f"📍 {road_type} @ {current}")
