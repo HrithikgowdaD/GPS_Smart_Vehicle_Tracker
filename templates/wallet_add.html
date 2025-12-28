@@ -14,42 +14,181 @@
   <!-- Razorpay -->
   <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 
-  <!-- ✅ YOUR ORIGINAL CSS -->
+  <!-- Updated CSS -->
   <style>
+    :root {
+      --primary: #6366f1;
+      --primary-soft: #818cf8;
+      --accent: #c084fc;
+      --bg-gradient-start: #a5b4fc;
+      --bg-gradient-end: #c084fc;
+
+      --surface: #ffffff;
+      --surface-soft: rgba(255,255,255,0.96);
+      --text-main: #0f172a;
+      --text-muted: #6b7280;
+
+      --radius-card: 20px;
+      --radius-pill: 999px;
+
+      --shadow-soft: 0 18px 45px rgba(15,23,42,0.35);
+    }
+
     body {
-      background: linear-gradient(135deg, #a5b4fc, #c084fc);
+      background:
+        radial-gradient(circle at 0% 0%, #c7d2fe 0, transparent 45%),
+        radial-gradient(circle at 100% 100%, #f5d0fe 0, transparent 55%),
+        linear-gradient(135deg, var(--bg-gradient-start), var(--bg-gradient-end));
       min-height: 100vh;
-      font-family: 'Poppins', sans-serif;
-      color: #1e293b;
+      font-family: 'Poppins', system-ui, -apple-system, 'Segoe UI', sans-serif;
+      color: var(--text-main);
+      display: flex;
+      flex-direction: column;
     }
 
+    /* Navbar */
     .navbar {
-      background: linear-gradient(90deg, #6366f1, #8b5cf6);
-      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      background: linear-gradient(90deg, #4f46e5, #8b5cf6);
+      box-shadow: 0 2px 10px rgba(15, 23, 42, 0.35);
+      z-index: 10;
     }
 
-    .card {
-      background: rgba(255, 255, 255, 0.95);
-      border-radius: 15px;
-      padding: 25px;
-      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-      margin-top: 40px;
+    .navbar-brand {
+      font-size: 1rem;
+      letter-spacing: 0.04em;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
     }
 
+    .navbar-brand span {
+      font-weight: 600;
+    }
+
+    .navbar .btn {
+      border-radius: var(--radius-pill);
+      padding-inline: 16px;
+      font-size: 0.8rem;
+    }
+
+    .navbar .btn:hover {
+      background-color: rgba(248, 250, 252, 0.16);
+    }
+
+    /* Page layout */
+    .wallet-shell {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 32px 16px 40px;
+    }
+
+    /* Card */
+    .wallet-card {
+      background: var(--surface-soft);
+      border-radius: var(--radius-card);
+      padding: 28px 26px 26px;
+      box-shadow: var(--shadow-soft);
+      max-width: 520px;
+      width: 100%;
+      border: 1px solid rgba(148,163,184,0.25);
+    }
+
+    .wallet-card h4 {
+      font-size: 1.3rem;
+      letter-spacing: 0.01em;
+    }
+
+    /* Form elements */
+    .form-label {
+      font-size: 0.9rem;
+      color: var(--text-main);
+    }
+
+    .form-select,
+    .form-control {
+      border-radius: 12px;
+      border: 1px solid rgba(148, 163, 184, 0.55);
+      font-size: 0.9rem;
+      padding: 10px 12px;
+      box-shadow: none;
+      transition:
+        border-color 0.18s ease,
+        box-shadow 0.18s ease,
+        background 0.18s ease,
+        transform 0.18s ease;
+    }
+
+    .form-select:focus,
+    .form-control:focus {
+      border-color: var(--primary);
+      box-shadow:
+        0 0 0 1px rgba(99,102,241,0.9),
+        0 0 0 6px rgba(129,140,248,0.25);
+      background: #f9fafb;
+      transform: translateY(-1px);
+    }
+
+    .form-text-muted {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    /* Pay button */
     .btn-pay {
-      background-color: #22c55e;
-      color: white;
-      font-weight: bold;
+      background-image: linear-gradient(135deg, #16a34a, #22c55e);
+      color: #f9fafb;
+      font-weight: 600;
       border: none;
       width: 100%;
+      border-radius: var(--radius-pill);
+      padding-block: 10px;
+      letter-spacing: 0.03em;
+      box-shadow: 0 10px 24px rgba(22, 163, 74, 0.55);
+      transition:
+        transform 0.16s ease,
+        box-shadow 0.16s ease,
+        filter 0.16s ease;
     }
 
     .btn-pay:hover {
-      background-color: #16a34a;
+      transform: translateY(-1px);
+      filter: brightness(1.03);
+      box-shadow: 0 14px 30px rgba(22, 163, 74, 0.65);
     }
 
-    .form-select, .form-control {
-      border-radius: 10px;
+    .btn-pay:active {
+      transform: translateY(0);
+      filter: brightness(0.97);
+      box-shadow: 0 8px 18px rgba(22, 163, 74, 0.6);
+    }
+
+    .btn-pay:disabled {
+      opacity: 0.65;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    /* Secure text */
+    .secure-text {
+      margin-top: 8px;
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      justify-content: center;
+    }
+
+    .secure-lock {
+      font-size: 0.9rem;
+    }
+
+    @media (max-width: 576px) {
+      .wallet-card {
+        padding: 22px 18px 20px;
+      }
     }
   </style>
 </head>
@@ -59,7 +198,7 @@
   <!-- Navbar -->
   <nav class="navbar navbar-dark px-3">
     <a class="navbar-brand fw-bold" href="/user_dashboard">
-      🚗 SmartToll — Wallet
+      <span>SmartToll — Wallet</span>
     </a>
     <div class="ms-auto">
       <a href="/user_dashboard" class="btn btn-outline-light btn-sm">⬅ Back</a>
@@ -67,8 +206,8 @@
   </nav>
 
   <!-- Wallet Card -->
-  <div class="container">
-    <div class="card mx-auto col-md-6">
+  <div class="wallet-shell">
+    <div class="wallet-card">
       <h4 class="fw-bold text-center mb-4">💰 Add Balance to Wallet</h4>
 
       <div class="mb-3">
@@ -81,6 +220,9 @@
             </option>
           {% endfor %}
         </select>
+        <div class="form-text-muted mt-1">
+          Choose the vehicle whose wallet you want to recharge.
+        </div>
       </div>
 
       <div class="mb-3">
@@ -94,18 +236,26 @@
           placeholder="Enter amount"
           required
         />
+        <div class="form-text-muted mt-1">
+          Minimum ₹10, in multiples of ₹10.
+        </div>
       </div>
 
       <button class="btn btn-pay mt-3" onclick="pay()">
         Pay with Razorpay
       </button>
+
+      <div class="secure-text">
+        <span class="secure-lock">🔒</span>
+        <span>Payments are processed securely by Razorpay.</span>
+      </div>
     </div>
   </div>
 
   <!-- Bootstrap JS -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
-  <!-- ✅ Razorpay Logic (UNCHANGED) -->
+  <!-- Razorpay Logic (unchanged) -->
   <script>
     function pay() {
       const amount = document.getElementById("amount").value;
