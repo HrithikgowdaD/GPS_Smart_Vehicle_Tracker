@@ -18,12 +18,24 @@ from flask_socketio import SocketIO
 import qrcode
 from geopy.distance import geodesic
 import razorpay
+from datetime import timedelta
+
+
 
 
 
 
 # ---------------- CONFIG ----------------
 app = Flask(__name__)
+
+app.config.update(
+    SESSION_COOKIE_SECURE=False,   # ngrok uses HTTPS but Flask sees HTTP
+    SESSION_COOKIE_SAMESITE="Lax",
+    SESSION_PERMANENT=True,
+    PERMANENT_SESSION_LIFETIME=timedelta(hours=6)
+)
+
+
 app.config["MONGO_URI"] = (
     "mongodb+srv://GPS-Smart-Toll:GPSSMARTTOLL@gps-smarttoll.cowontb.mongodb.net/toll_dashboard?retryWrites=true&w=majority"
 )
@@ -111,14 +123,27 @@ def register():
 # ---------- Login ----------
 @app.route("/login", methods=["POST"])
 def login():
-    user = users_col.find_one({"email": request.form["email"]})
-    if not user or not check_password_hash(user["password_hash"], request.form["password"]):
+    email = request.form["email"]
+    password = request.form["password"]
+    selected_role = request.form.get("role")  # from dropdown
+
+    user = users_col.find_one({"email": email})
+
+    if not user or not check_password_hash(user["password_hash"], password):
         flash("Invalid credentials", "danger")
+        return redirect(url_for("home"))
+
+    if selected_role and user["role"] != selected_role:
+        flash("Unauthorized role access", "danger")
         return redirect(url_for("home"))
 
     session["user_id"] = str(user["_id"])
     session["role"] = user["role"]
+    session.permanent = True
+
     return redirect(url_for("user_dashboard"))
+
+
 
 
 # ---------- Logout ----------
@@ -155,10 +180,12 @@ def register_vehicle():
                 "owner_name": owner,
                 "aadhar": aadhaar,
                 "phone": user["phone"],
+                "user_id": user["_id"],   # ✅ ADD THIS
                 "balance": 0.0,
                 "qr_path": qr_path,
                 "created_at": datetime.utcnow()
             })
+
 
         return redirect(url_for("user_dashboard"))
 
@@ -170,7 +197,8 @@ def register_vehicle():
 @login_required()
 def wallet_add():
     user = users_col.find_one({"_id": ObjectId(session["user_id"])})
-    vehicles = list(vehicles_col.find({"phone": user["phone"]}))
+    vehicles = list(vehicles_col.find({"user_id": user["_id"]}))
+
     return render_template("wallet_add.html", vehicles=vehicles)
 
 
@@ -237,11 +265,17 @@ def user_dashboard():
     user = users_col.find_one({"_id": ObjectId(session["user_id"])})
 
     if user["role"] == "developer":
-    # 🔥 Developer sees ALL vehicles
         vehicles = list(vehicles_col.find())
     else:
-    # 👤 Normal user sees only their vehicles
-        vehicles = list(vehicles_col.find({"phone": user["phone"]}))
+        vehicles = list(
+            vehicles_col.find({
+                "$or": [
+                    {"user_id": user["_id"]},
+                    {"phone": user["phone"]}
+                ]
+            })
+        )
+
 
     return render_template(
         "user_dashboard.html",
