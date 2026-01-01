@@ -20,36 +20,49 @@
       --primary: #6366f1;
       --primary-soft: #818cf8;
       --accent: #c084fc;
-      --bg-gradient-start: #a5b4fc;
-      --bg-gradient-end: #c084fc;
+
+      --bg-gradient-start: #0b1120;
+      --bg-gradient-end: #1e293b;
 
       --surface: #ffffff;
-      --surface-soft: rgba(255,255,255,0.96);
+      --surface-soft: rgba(255,255,255,0.95);
       --text-main: #0f172a;
       --text-muted: #6b7280;
 
       --radius-card: 20px;
       --radius-pill: 999px;
 
-      --shadow-soft: 0 18px 45px rgba(15,23,42,0.35);
+      --shadow-soft: 0 24px 60px rgba(15,23,42,0.45);
     }
 
+    /* ============================
+       GLOBAL BACKGROUND
+    ============================ */
     body {
-      background:
-        radial-gradient(circle at 0% 0%, #c7d2fe 0, transparent 45%),
-        radial-gradient(circle at 100% 100%, #f5d0fe 0, transparent 55%),
-        linear-gradient(135deg, var(--bg-gradient-start), var(--bg-gradient-end));
       min-height: 100vh;
       font-family: 'Poppins', system-ui, -apple-system, 'Segoe UI', sans-serif;
       color: var(--text-main);
       display: flex;
       flex-direction: column;
+      background:
+        linear-gradient(
+          135deg,
+          rgba(15,23,42,0.92),
+          rgba(30,64,175,0.88)
+        ),
+        url("/static/bg-smarttoll-highway.png") center center / cover no-repeat fixed;
+      background-blend-mode: overlay;
     }
 
-    /* Navbar */
+    /* ============================
+       NAVBAR
+    ============================ */
     .navbar {
-      background: linear-gradient(90deg, #4f46e5, #8b5cf6);
-      box-shadow: 0 2px 10px rgba(15, 23, 42, 0.35);
+      background:
+        linear-gradient(90deg, #4f46e5, #8b5cf6);
+      box-shadow: 0 12px 30px rgba(15,23,42,0.55);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
       z-index: 10;
     }
 
@@ -69,13 +82,16 @@
       border-radius: var(--radius-pill);
       padding-inline: 16px;
       font-size: 0.8rem;
+      border-width: 1px;
     }
 
     .navbar .btn:hover {
       background-color: rgba(248, 250, 252, 0.16);
     }
 
-    /* Page layout */
+    /* ============================
+       PAGE LAYOUT
+    ============================ */
     .wallet-shell {
       flex: 1;
       display: flex;
@@ -84,35 +100,48 @@
       padding: 32px 16px 40px;
     }
 
-    /* Card */
+    /* ============================
+       WALLET CARD (GLASSMORPHISM)
+    ============================ */
     .wallet-card {
-      background: var(--surface-soft);
-      border-radius: var(--radius-card);
-      padding: 28px 26px 26px;
-      box-shadow: var(--shadow-soft);
       max-width: 520px;
       width: 100%;
-      border: 1px solid rgba(148,163,184,0.25);
+      padding: 28px 26px 26px;
+      border-radius: var(--radius-card);
+      background:
+        radial-gradient(circle at 0% 0%, rgba(129,140,248,0.35), transparent 55%),
+        radial-gradient(circle at 100% 100%, rgba(196,181,253,0.45), transparent 60%),
+        rgba(255,255,255,0.86);
+      box-shadow: var(--shadow-soft);
+      border: 1px solid rgba(148,163,184,0.35);
+      backdrop-filter: blur(22px);
+      -webkit-backdrop-filter: blur(22px);
     }
 
     .wallet-card h4 {
-      font-size: 1.3rem;
+      font-size: 1.4rem;
       letter-spacing: 0.01em;
+      margin-bottom: 1.5rem;
     }
 
-    /* Form elements */
+    /* ============================
+       FORM ELEMENTS
+    ============================ */
     .form-label {
       font-size: 0.9rem;
+      font-weight: 600;
+      letter-spacing: 0.01em;
       color: var(--text-main);
     }
 
     .form-select,
     .form-control {
-      border-radius: 12px;
+      border-radius: 14px;
       border: 1px solid rgba(148, 163, 184, 0.55);
       font-size: 0.9rem;
       padding: 10px 12px;
       box-shadow: none;
+      background-color: rgba(255,255,255,0.96);
       transition:
         border-color 0.18s ease,
         box-shadow 0.18s ease,
@@ -124,18 +153,21 @@
     .form-control:focus {
       border-color: var(--primary);
       box-shadow:
-        0 0 0 1px rgba(99,102,241,0.9),
-        0 0 0 6px rgba(129,140,248,0.25);
+        0 0 0 1px rgba(99,102,241,0.95),
+        0 0 0 6px rgba(129,140,248,0.32);
       background: #f9fafb;
       transform: translateY(-1px);
     }
 
     .form-text-muted {
-      font-size: 0.8rem;
+      font-size: 0.78rem;
+      line-height: 1.5;
       color: var(--text-muted);
     }
 
-    /* Pay button */
+    /* ============================
+       PRIMARY PAY BUTTON
+    ============================ */
     .btn-pay {
       background-image: linear-gradient(135deg, #16a34a, #22c55e);
       color: #f9fafb;
@@ -144,8 +176,9 @@
       width: 100%;
       border-radius: var(--radius-pill);
       padding-block: 10px;
-      letter-spacing: 0.03em;
-      box-shadow: 0 10px 24px rgba(22, 163, 74, 0.55);
+      font-size: 0.95rem;
+      letter-spacing: 0.04em;
+      box-shadow: 0 12px 28px rgba(22,163,74,0.55);
       transition:
         transform 0.16s ease,
         box-shadow 0.16s ease,
@@ -154,14 +187,14 @@
 
     .btn-pay:hover {
       transform: translateY(-1px);
-      filter: brightness(1.03);
-      box-shadow: 0 14px 30px rgba(22, 163, 74, 0.65);
+      filter: brightness(1.04);
+      box-shadow: 0 16px 34px rgba(22,163,74,0.7);
     }
 
     .btn-pay:active {
       transform: translateY(0);
       filter: brightness(0.97);
-      box-shadow: 0 8px 18px rgba(22, 163, 74, 0.6);
+      box-shadow: 0 8px 18px rgba(22,163,74,0.65);
     }
 
     .btn-pay:disabled {
@@ -170,11 +203,13 @@
       box-shadow: none;
     }
 
-    /* Secure text */
+    /* ============================
+       SECURE TEXT
+    ============================ */
     .secure-text {
-      margin-top: 8px;
-      font-size: 0.78rem;
-      color: var(--text-muted);
+      margin-top: 10px;
+      font-size: 0.8rem;
+      color: #4b5563;
       display: flex;
       align-items: center;
       gap: 6px;
@@ -185,6 +220,9 @@
       font-size: 0.9rem;
     }
 
+    /* ============================
+       RESPONSIVE
+    ============================ */
     @media (max-width: 576px) {
       .wallet-card {
         padding: 22px 18px 20px;
@@ -211,7 +249,7 @@
       <h4 class="fw-bold text-center mb-4">💰 Add Balance to Wallet</h4>
 
       <div class="mb-3">
-        <label class="form-label fw-semibold">Select Vehicle</label>
+        <label class="form-label">Select Vehicle</label>
         <select id="vehicle" class="form-select" required>
           <option value="">-- Choose Vehicle --</option>
           {% for v in vehicles %}
@@ -226,7 +264,7 @@
       </div>
 
       <div class="mb-3">
-        <label class="form-label fw-semibold">Enter Amount (₹)</label>
+        <label class="form-label">Enter Amount (₹)</label>
         <input
           type="number"
           id="amount"
@@ -242,7 +280,7 @@
       </div>
 
       <button class="btn btn-pay mt-3" onclick="pay()">
-        Pay with Razorpay
+        🛡 Pay securely with Razorpay
       </button>
 
       <div class="secure-text">
