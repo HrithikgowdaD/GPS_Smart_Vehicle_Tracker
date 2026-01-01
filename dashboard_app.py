@@ -50,7 +50,7 @@ mongo.init_app(app)
 
 # ---------------- HARDWARE MAPPING ----------------
 HARDWARE_VEHICLE_MAP = {
-    "GPS_UNIT_001": "KA19MH8521"  # evaluator demo vehicle
+    "GPS_UNIT_001": "KA55HH8569"  # evaluator demo vehicle
 }
 
 

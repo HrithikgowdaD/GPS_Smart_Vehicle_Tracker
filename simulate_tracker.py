@@ -12,7 +12,7 @@ API_URL = "http://127.0.0.1:5000/api/update_location"
 LOG_URL = "http://127.0.0.1:5000/api/track_and_log"
 
 START = (12.9716, 77.5946)   # Bengaluru
-END   = (12.2958, 76.6394)   # Mysuru
+END   = (11.1271, 78.6569)   # Mysuru
 
 # ---------------- HELPERS ----------------
 def get_route_points(start, end):
