@@ -346,8 +346,8 @@ def api_update_location():
     return jsonify({"status": "ok"})
 
 
-@app.route("/api/hw/ping", methods=["POST"])
-def hw_ping():
+# @app.route("/api/hw/ping", methods=["POST"])
+# def hw_ping():
     data = request.get_json()
 
     device_id = data.get("device_id")
@@ -374,6 +374,76 @@ def hw_ping():
     socketio.emit("location_update", ping)
     return jsonify({"status": "ok"})
 
+@app.route("/api/hw/ping", methods=["POST"])
+def hw_ping():
+    data = request.get_json()
+
+    print("🔥 HW PING RECEIVED:", data)
+
+    device_id = data.get("device_id", "").strip()
+    lat = float(data.get("lat"))
+    lng = float(data.get("lng"))
+
+    vehicle_no = HARDWARE_VEHICLE_MAP.get(device_id)
+    if not vehicle_no:
+        print("❌ UNKNOWN DEVICE:", device_id)
+        return jsonify({"error": "Unknown device"}), 400
+
+    ping = {
+        "vehicle_no": vehicle_no,
+        "lat": lat,
+        "lng": lng,
+        "timestamp": datetime.utcnow()
+    }
+
+    pings_col.insert_one(ping)
+
+    print(f"✅ INSERTED INTO MONGODB → {vehicle_no} | {lat},{lng}")
+
+    socketio.emit("location_update", {
+        "vehicle_no": vehicle_no,
+        "lat": lat,
+        "lng": lng,
+        "timestamp": ping["timestamp"].isoformat()
+    })
+
+    return jsonify({"status": "ok"})
+
+    data = request.get_json()
+
+    device_id = data.get("device_id")
+    lat = float(data.get("lat"))
+    lng = float(data.get("lng"))
+
+    vehicle_no = HARDWARE_VEHICLE_MAP.get(device_id)
+    if not vehicle_no:
+        return jsonify({"error": "Unknown device"}), 400
+
+    # ✅ MongoDB-safe (datetime is OK here)
+    ping = {
+        "vehicle_no": vehicle_no,
+        "lat": lat,
+        "lng": lng,
+        "timestamp": datetime.utcnow()
+    }
+
+    pings_col.insert_one(ping)
+
+    # 🔥 Auto trip logic
+    if check_auto_trip_end(vehicle_no):
+        process_trip(vehicle_no)
+
+    # ✅ Socket.IO-safe payload
+    socket_payload = {
+        "vehicle_no": vehicle_no,
+        "lat": lat,
+        "lng": lng,
+        "timestamp": ping["timestamp"].isoformat()
+    }
+
+    socketio.emit("location_update", socket_payload)
+
+    return jsonify({"status": "ok"})
 
 
 # @app.route("/api/track_and_log", methods=["POST"])
