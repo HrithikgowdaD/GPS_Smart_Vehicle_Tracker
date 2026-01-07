@@ -40,7 +40,7 @@
 
       --surface: #ffffff;
       --surface-soft: rgba(255, 255, 255, 0.88);
-      --border-subtle: rgba(148, 163, 184, 0.28);
+      --border-subtle: rgba(2, 13, 28, 0.28);
 
       --text-main: #020617;
       --text-muted: #6b7280;
@@ -62,7 +62,7 @@
           rgba(2, 6, 23, 0.96),
           rgba(15, 23, 42, 0.92)
         ),
-        url("/static/bg-smarttoll-highway.png") center center / cover no-repeat fixed;
+        url("") center center / cover no-repeat fixed;
       background-blend-mode: overlay;
       transition: background 0.3s ease, color 0.3s ease;
     }
@@ -74,7 +74,7 @@
           rgba(239, 246, 255, 0.90),
           rgba(224, 231, 255, 0.85)
         ),
-        url("/static/bg-smarttoll-highway.png") center center / cover no-repeat fixed;
+        url("") center center / cover no-repeat fixed;
       background-blend-mode: soft-light;
     }
 
@@ -257,7 +257,8 @@
 
     .card:hover {
       transform: translateY(-2px);
-      box-shadow: 0 20px 55px rgba(15, 23, 42, 0.9);
+     box-shadow: 0 20px 55px rgba(152, 149, 149, 0.25);
+
       border-color: rgba(129, 140, 248, 0.9);
     }
 
@@ -414,7 +415,7 @@
     body:not(.dark-mode) #map {
       background: #e5e7eb;
       box-shadow: 0 18px 45px rgba(15, 23, 42, 0.28);
-      border-color: rgba(148, 163, 184, 0.55);
+      border-color: rgb(208, 212, 217);
     }
 
     .legend {
@@ -422,7 +423,7 @@
       padding: 7px 16px;
       border-radius: var(--radius-pill);
       background:
-        radial-gradient(circle at 0% 0%, rgba(56, 189, 248, 0.28), transparent 60%),
+        radial-gradient(circle at 0% 0%, rgba(215, 226, 229, 0.28), transparent 60%),
         rgba(15, 23, 42, 0.96);
       display: inline-flex;
       justify-content: center;
@@ -524,7 +525,7 @@
     <div class="card mt-4 p-3">
       <div class="d-flex justify-content-between align-items-center card-header-lite">
         <h5 class="fw-bold mb-0">Your Vehicles</h5>
-        <a href="{{ url_for('register_vehicle') }}" class="btn btn-sm btn-primary-soft">➕ Add Vehicle</a>
+        <a href="{{ url_for('register_vehicle') }}" class="btn btn-sm btn-primary-soft">Add Vehicle</a>
       </div>
 
       {% if vehicles %}
@@ -559,12 +560,17 @@
 
             <td class="d-flex justify-content-center flex-wrap vehicles-actions">
               <a href="{{ url_for('user_history', vehicle_no=v.vehicle_no) }}"
-                 class="btn btn-sm btn-outline-primary">📜 History</a>
+                 class="btn btn-sm btn-outline-primary">History</a>
 
               <a href="{{ url_for('wallet_add') }}"
-                 class="btn btn-sm btn-outline-success">💰 Balance</a>
+                 class="btn btn-sm btn-outline-success">Balance</a>
 
-              <button class="btn btn-sm btn-outline-danger">📍 Track</button>
+              <button
+  class="btn btn-sm btn-outline-danger"
+  onclick="startTracking('{{ v.vehicle_no }}')">
+  Track
+</button>
+
 
               {% if user.role == "developer" %}
               <form action="{{ url_for('delete_vehicle', vehicle_no=v.vehicle_no) }}" method="POST"
@@ -586,7 +592,7 @@
     <!-- Live tracking -->
     <div class="card mt-4 p-3">
       <div class="d-flex justify-content-between align-items-center card-header-lite">
-        <h5 class="fw-bold mb-0">📍 Live Vehicle Tracking</h5>
+        <h5 class="fw-bold mb-0">Live Vehicle Tracking</h5>
       </div>
       <div id="map"></div>
 
@@ -630,6 +636,8 @@
 
     const markers = {};
     const routePolylines = {};
+    let activeVehicle = null;
+
 
     function initMap() {
       console.log("✅ initMap called");
@@ -647,15 +655,25 @@
     const socket = io(window.location.origin, {
       transports: ["polling", "websocket"]
     });
+    function startTracking(vehicleNo) {
+  activeVehicle = vehicleNo;
+  map.setZoom(15);
+
+  console.log("🚗 Tracking started for:", vehicleNo);
+}
+
 
     socket.on("connect", () => {
       console.log("✅ SOCKET CONNECTED");
     });
 
     socket.on("location_update", data => {
-      console.log("📍 UPDATE:", data);
+  if (activeVehicle && data.vehicle_no !== activeVehicle) return;
 
-      const { vehicle_no, lat, lng } = data;
+  console.log("📍 UPDATE:", data);
+
+  const { vehicle_no, lat, lng } = data;
+
       const pos = new google.maps.LatLng(lat, lng);
 
       if (!markers[vehicle_no]) {

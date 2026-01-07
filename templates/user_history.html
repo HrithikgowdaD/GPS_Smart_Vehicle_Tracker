@@ -87,7 +87,7 @@
               <td>{{ t.highway_distance }}</td>
               <td>₹{{ t.fare }}</td>
               <td>
-                <button class="btn btn-sm btn-outline-primary" onclick='showOnMap({{ t.route | tojson }})'>
+                <button class="btn btn-sm btn-outline-primary" onclick="showOnMap({{ t.route | tojson | safe }})">
                   View
                 </button>
 

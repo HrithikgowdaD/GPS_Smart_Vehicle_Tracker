@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Trip Map | Smart Toll System</title>
+
+  <!-- Google Maps API -->
+  <script src="https://maps.googleapis.com/maps/api/js?key={{ google_api_key }}"></script>
+
+  <<style>
+  body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #f3f4f6; /* light grey */
+    color: #1f2937;      /* dark grey text */
+  }
+
+  #map {
+    height: 100vh;
+    width: 100%;
+  }
+
+  .top-bar {
+    position: absolute;
+    top: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #ffffff; /* white */
+    padding: 10px 20px;
+    border-radius: 10px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+    z-index: 10;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+  }
+
+  .top-bar span {
+    font-weight: 600;
+    color: #0f172a; /* near-black */
+    margin-right: 8px;
+  }
+
+  .btn {
+    border: none;
+    padding: 6px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+  }
+
+  .btn-start {
+    background: #1e3a8a; /* navy blue */
+    color: white;
+  }
+
+  .btn-start:hover {
+    background: #1d4ed8;
+  }
+
+  .btn-pause {
+    background: #334155; /* dark slate blue */
+    color: white;
+  }
+
+  .btn-pause:hover {
+    background: #475569;
+  }
+</style>
+
+</head>
+
+<body>
+
+<div class="top-bar">
+  <span>Trip Playback</span>
+  <button class="btn btn-start" onclick="startAnimation()">▶ Start</button>
+  <button class="btn btn-pause" onclick="pauseAnimation()">⏸ Pause</button>
+</div>
+
+<div id="map"></div>
+
+<!-- Route data -->
+<script id="route-data" type="application/json">
+  {{ trip.route | tojson }}
+</script>
+
+<script>
+  const route = JSON.parse(
+    document.getElementById("route-data").textContent
+  );
+
+  if (!route || route.length < 2) {
+    alert("No route data available");
+    throw new Error("Invalid route");
+  }
+
+  let map, vehicleMarker;
+  let roadPath = [];
+  let index = 0;
+  let animationInterval = null;
+  let isPaused = true;
+
+  // Initialize map
+  map = new google.maps.Map(document.getElementById("map"), {
+    zoom: 7,
+    center: route[0]
+  });
+
+  const directionsService = new google.maps.DirectionsService();
+  const directionsRenderer = new google.maps.DirectionsRenderer({
+    map: map,
+    suppressMarkers: true,
+    polylineOptions: {
+      strokeColor: "#2563eb",
+      strokeWeight: 5
+    }
+  });
+
+  directionsService.route(
+    {
+      origin: route[0],
+      destination: route[route.length - 1],
+      travelMode: google.maps.TravelMode.DRIVING
+    },
+    (result, status) => {
+      if (status !== "OK") {
+        alert("Directions failed: " + status);
+        return;
+      }
+
+      directionsRenderer.setDirections(result);
+      roadPath = result.routes[0].overview_path;
+
+      vehicleMarker = new google.maps.Marker({
+        position: roadPath[0],
+        map: map,
+        icon: {
+          path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
+          scale: 5,
+          strokeColor: "#111"
+        }
+      });
+
+      // Start marker
+      new google.maps.Marker({
+        position: route[0],
+        map: map,
+        label: "S"
+      });
+
+      // End marker
+      new google.maps.Marker({
+        position: route[route.length - 1],
+        map: map,
+        label: "E"
+      });
+    }
+  );
+
+  function startAnimation() {
+    if (!roadPath.length || !isPaused) return;
+
+    isPaused = false;
+
+    animationInterval = setInterval(() => {
+      if (index >= roadPath.length) {
+        clearInterval(animationInterval);
+        return;
+      }
+
+      vehicleMarker.setPosition(roadPath[index]);
+      index++;
+    }, 60); // speed (lower = faster)
+  }
+
+  function pauseAnimation() {
+    isPaused = true;
+    clearInterval(animationInterval);
+  }
+</script>
+
+</body>
+</html>

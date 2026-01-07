@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>💰 Add Wallet Balance — SmartToll</title>
+  <title>Add Wallet Balance — SmartToll</title>
 
   <!-- Bootstrap -->
   <link
@@ -25,14 +25,21 @@
       --bg-gradient-end: #1e293b;
 
       --surface: #ffffff;
-      --surface-soft: rgba(255,255,255,0.95);
+    --shadow-soft: 
+  0 10px 30px rgba(0, 0, 0, 0.18),
+  0 25px 60px rgba(0, 0, 0, 0.12);
+
+
       --text-main: #0f172a;
       --text-muted: #6b7280;
 
       --radius-card: 20px;
       --radius-pill: 999px;
 
-      --shadow-soft: 0 24px 60px rgba(15,23,42,0.45);
+      --shadow-soft: 
+  0 10px 30px rgba(0, 0, 0, 0.18),
+  0 25px 60px rgba(0, 0, 0, 0.12);
+
     }
 
     /* ============================
@@ -47,10 +54,10 @@
       background:
         linear-gradient(
           135deg,
-          rgba(15,23,42,0.92),
-          rgba(30,64,175,0.88)
+          rgba(116, 117, 120, 0),
+          rgba(231, 233, 237, 0.88)
         ),
-        url("/static/bg-smarttoll-highway.png") center center / cover no-repeat fixed;
+        url() center center / cover no-repeat fixed;
       background-blend-mode: overlay;
     }
 
@@ -86,7 +93,7 @@
     }
 
     .navbar .btn:hover {
-      background-color: rgba(248, 250, 252, 0.16);
+      background-color: rgb(240, 241, 243);
     }
 
     /* ============================
@@ -113,7 +120,7 @@
         radial-gradient(circle at 100% 100%, rgba(196,181,253,0.45), transparent 60%),
         rgba(255,255,255,0.86);
       box-shadow: var(--shadow-soft);
-      border: 1px solid rgba(148,163,184,0.35);
+      border: 1px solid rgb(249, 250, 253);
       backdrop-filter: blur(22px);
       -webkit-backdrop-filter: blur(22px);
     }
@@ -137,7 +144,7 @@
     .form-select,
     .form-control {
       border-radius: 14px;
-      border: 1px solid rgba(148, 163, 184, 0.55);
+      border: 1px solid rgb(253, 254, 255);
       font-size: 0.9rem;
       padding: 10px 12px;
       box-shadow: none;
@@ -209,7 +216,7 @@
     .secure-text {
       margin-top: 10px;
       font-size: 0.8rem;
-      color: #4b5563;
+      color: #d7dce3;
       display: flex;
       align-items: center;
       gap: 6px;
@@ -246,7 +253,7 @@
   <!-- Wallet Card -->
   <div class="wallet-shell">
     <div class="wallet-card">
-      <h4 class="fw-bold text-center mb-4">💰 Add Balance to Wallet</h4>
+      <h4 class="fw-bold text-center mb-4">Add Balance to Wallet</h4>
 
       <div class="mb-3">
         <label class="form-label">Select Vehicle</label>
@@ -284,7 +291,7 @@
       </button>
 
       <div class="secure-text">
-        <span class="secure-lock">🔒</span>
+        <span class="secure-lock"></span>
         <span>Payments are processed securely by Razorpay.</span>
       </div>
     </div>
