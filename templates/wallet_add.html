@@ -14,250 +14,183 @@
   <!-- Razorpay -->
   <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 
-  <!-- Updated CSS -->
   <style>
     :root {
-      --primary: #6366f1;
-      --primary-soft: #818cf8;
-      --accent: #c084fc;
-
-      --bg-gradient-start: #0b1120;
-      --bg-gradient-end: #1e293b;
-
-      --surface: #ffffff;
-    --shadow-soft: 
-  0 10px 30px rgba(0, 0, 0, 0.18),
-  0 25px 60px rgba(0, 0, 0, 0.12);
-
-
-      --text-main: #0f172a;
-      --text-muted: #6b7280;
-
       --radius-card: 20px;
       --radius-pill: 999px;
-
-      --shadow-soft: 
-  0 10px 30px rgba(0, 0, 0, 0.18),
-  0 25px 60px rgba(0, 0, 0, 0.12);
-
     }
 
-    /* ============================
-       GLOBAL BACKGROUND
-    ============================ */
+    /* =========================
+       GLOBAL
+    ========================= */
     body {
       min-height: 100vh;
-      font-family: 'Poppins', system-ui, -apple-system, 'Segoe UI', sans-serif;
-      color: var(--text-main);
+      font-family: "Poppins", system-ui, sans-serif;
+      background: #f3f4f6;
+      color: #0f172a;
       display: flex;
       flex-direction: column;
-      background:
-        linear-gradient(
-          135deg,
-          rgba(116, 117, 120, 0),
-          rgba(231, 233, 237, 0.88)
-        ),
-        url() center center / cover no-repeat fixed;
-      background-blend-mode: overlay;
     }
 
-    /* ============================
-       NAVBAR
-    ============================ */
+    /* =========================
+       NAVBAR (BAND)
+    ========================= */
     .navbar {
-      background:
-        linear-gradient(90deg, #4f46e5, #8b5cf6);
-      box-shadow: 0 12px 30px rgba(15,23,42,0.55);
-      backdrop-filter: blur(18px);
-      -webkit-backdrop-filter: blur(18px);
-      z-index: 10;
-    }
+  position: sticky;
+  top: 0;
+  z-index: 20;
+
+  /* ⬇ Reduced height */
+  min-height: 44px;
+  padding: 4px 16px;
+
+  background: linear-gradient(
+    90deg,
+    #0b3a5b,
+
+    #0f172a
+  );
+
+
+
+}
 
     .navbar-brand {
-      font-size: 1rem;
-      letter-spacing: 0.04em;
       display: flex;
       align-items: center;
-      gap: 0.4rem;
+      gap: 10px;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      color: #f8fafc !important;
     }
 
-    .navbar-brand span {
-      font-weight: 600;
+    /* LOGO INSIDE BAND */
+    .brand-logo-nav {
+      height: 80px;
+      width: 80px;
+      object-fit: contain;
+      border-radius: 50%;
+      padding: 3px;
+
+      background: radial-gradient(
+        c
+      );
+
+      
     }
 
     .navbar .btn {
       border-radius: var(--radius-pill);
-      padding-inline: 16px;
       font-size: 0.8rem;
-      border-width: 1px;
+      padding: 4px 14px;
     }
 
-    .navbar .btn:hover {
-      background-color: rgb(240, 241, 243);
-    }
-
-    /* ============================
+    /* =========================
        PAGE LAYOUT
-    ============================ */
+    ========================= */
     .wallet-shell {
       flex: 1;
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: 32px 16px 40px;
+      padding: 40px 16px;
     }
 
-    /* ============================
-       WALLET CARD (GLASSMORPHISM)
-    ============================ */
+    /* =========================
+       WALLET CARD
+    ========================= */
     .wallet-card {
       max-width: 520px;
       width: 100%;
-      padding: 28px 26px 26px;
+      padding: 28px 26px;
       border-radius: var(--radius-card);
-      background:
-        radial-gradient(circle at 0% 0%, rgba(129,140,248,0.35), transparent 55%),
-        radial-gradient(circle at 100% 100%, rgba(196,181,253,0.45), transparent 60%),
-        rgba(255,255,255,0.86);
-      box-shadow: var(--shadow-soft);
-      border: 1px solid rgb(249, 250, 253);
-      backdrop-filter: blur(22px);
-      -webkit-backdrop-filter: blur(22px);
+      background: #ffffff;
+      box-shadow:
+        0 12px 30px rgba(0,0,0,0.18),
+        0 25px 60px rgba(0,0,0,0.12);
+      border: 1px solid #e5e7eb;
     }
 
     .wallet-card h4 {
-      font-size: 1.4rem;
-      letter-spacing: 0.01em;
-      margin-bottom: 1.5rem;
+      font-weight: 700;
+      margin-bottom: 1.6rem;
+      text-align: center;
     }
 
-    /* ============================
-       FORM ELEMENTS
-    ============================ */
+    /* =========================
+       FORM
+    ========================= */
     .form-label {
       font-size: 0.9rem;
       font-weight: 600;
-      letter-spacing: 0.01em;
-      color: var(--text-main);
     }
 
     .form-select,
     .form-control {
       border-radius: 14px;
-      border: 1px solid rgb(253, 254, 255);
       font-size: 0.9rem;
       padding: 10px 12px;
-      box-shadow: none;
-      background-color: rgba(255,255,255,0.96);
-      transition:
-        border-color 0.18s ease,
-        box-shadow 0.18s ease,
-        background 0.18s ease,
-        transform 0.18s ease;
+      border: 1px solid #e5e7eb;
+      background: #f9fafb;
     }
 
     .form-select:focus,
     .form-control:focus {
-      border-color: var(--primary);
-      box-shadow:
-        0 0 0 1px rgba(99,102,241,0.95),
-        0 0 0 6px rgba(129,140,248,0.32);
-      background: #f9fafb;
-      transform: translateY(-1px);
+      border-color: #0b3a5b;
+      box-shadow: 0 0 0 3px rgba(11,58,91,0.2);
+      background: #ffffff;
     }
 
-    .form-text-muted {
-      font-size: 0.78rem;
-      line-height: 1.5;
-      color: var(--text-muted);
-    }
-
-    /* ============================
-       PRIMARY PAY BUTTON
-    ============================ */
+    /* =========================
+       PAY BUTTON
+    ========================= */
     .btn-pay {
-      background-image: linear-gradient(135deg, #16a34a, #22c55e);
-      color: #f9fafb;
+      background: linear-gradient(135deg, #16a34a, #22c55e);
+      color: white;
       font-weight: 600;
-      border: none;
       width: 100%;
       border-radius: var(--radius-pill);
-      padding-block: 10px;
-      font-size: 0.95rem;
-      letter-spacing: 0.04em;
+      border: none;
+      padding: 10px;
+      margin-top: 8px;
       box-shadow: 0 12px 28px rgba(22,163,74,0.55);
-      transition:
-        transform 0.16s ease,
-        box-shadow 0.16s ease,
-        filter 0.16s ease;
     }
 
     .btn-pay:hover {
-      transform: translateY(-1px);
-      filter: brightness(1.04);
-      box-shadow: 0 16px 34px rgba(22,163,74,0.7);
+      filter: brightness(1.05);
     }
 
-    .btn-pay:active {
-      transform: translateY(0);
-      filter: brightness(0.97);
-      box-shadow: 0 8px 18px rgba(22,163,74,0.65);
-    }
-
-    .btn-pay:disabled {
-      opacity: 0.65;
-      cursor: not-allowed;
-      box-shadow: none;
-    }
-
-    /* ============================
-       SECURE TEXT
-    ============================ */
     .secure-text {
       margin-top: 10px;
       font-size: 0.8rem;
-      color: #d7dce3;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      justify-content: center;
-    }
-
-    .secure-lock {
-      font-size: 0.9rem;
-    }
-
-    /* ============================
-       RESPONSIVE
-    ============================ */
-    @media (max-width: 576px) {
-      .wallet-card {
-        padding: 22px 18px 20px;
-      }
+      color: #6b7280;
+      text-align: center;
     }
   </style>
 </head>
 
 <body>
 
-  <!-- Navbar -->
-  <nav class="navbar navbar-dark px-3">
-    <a class="navbar-brand fw-bold" href="/user_dashboard">
-      <span>SmartToll — Wallet</span>
+  <!-- NAVBAR -->
+  <nav class="navbar navbar-dark">
+    <a class="navbar-brand" href="/user_dashboard">
+      <img src="/static/smarttoll_logofinal3.jpeg" class="brand-logo-nav" alt="SmartToll Logo">
+      <span>SMARTTOLL</span>
     </a>
-    <div class="ms-auto">
-      <a href="/user_dashboard" class="btn btn-outline-light btn-sm">⬅ Back</a>
-    </div>
+
+    <a href="/user_dashboard" class="btn btn-outline-light btn-sm ms-auto">
+      ⬅ Back
+    </a>
   </nav>
 
-  <!-- Wallet Card -->
+  <!-- WALLET CARD -->
   <div class="wallet-shell">
     <div class="wallet-card">
-      <h4 class="fw-bold text-center mb-4">Add Balance to Wallet</h4>
+      <h4>Add Balance to Wallet</h4>
 
       <div class="mb-3">
         <label class="form-label">Select Vehicle</label>
-        <select id="vehicle" class="form-select" required>
+        <select id="vehicle" class="form-select">
           <option value="">-- Choose Vehicle --</option>
           {% for v in vehicles %}
             <option value="{{ v.vehicle_no }}">
@@ -265,34 +198,19 @@
             </option>
           {% endfor %}
         </select>
-        <div class="form-text-muted mt-1">
-          Choose the vehicle whose wallet you want to recharge.
-        </div>
       </div>
 
       <div class="mb-3">
         <label class="form-label">Enter Amount (₹)</label>
-        <input
-          type="number"
-          id="amount"
-          class="form-control"
-          min="10"
-          step="10"
-          placeholder="Enter amount"
-          required
-        />
-        <div class="form-text-muted mt-1">
-          Minimum ₹10, in multiples of ₹10.
-        </div>
+        <input type="number" id="amount" class="form-control" min="10" step="10" placeholder="Enter amount">
       </div>
 
-      <button class="btn btn-pay mt-3" onclick="pay()">
+      <button class="btn btn-pay" onclick="pay()">
         🛡 Pay securely with Razorpay
       </button>
 
       <div class="secure-text">
-        <span class="secure-lock"></span>
-        <span>Payments are processed securely by Razorpay.</span>
+        Payments are processed securely by Razorpay.
       </div>
     </div>
   </div>
@@ -300,7 +218,7 @@
   <!-- Bootstrap JS -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
-  <!-- Razorpay Logic (unchanged) -->
+  <!-- Razorpay -->
   <script>
     function pay() {
       const amount = document.getElementById("amount").value;
@@ -314,10 +232,7 @@
       fetch("/wallet/create-order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          amount: amount,
-          vehicle_no: vehicle
-        })
+        body: JSON.stringify({ amount, vehicle_no: vehicle })
       })
       .then(res => res.json())
       .then(data => {
@@ -328,21 +243,9 @@
           name: "SmartToll",
           description: "Wallet Recharge",
           order_id: data.order_id,
-          handler: function (response) {
-            fetch("/wallet/verify", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                razorpay_order_id: response.razorpay_order_id,
-                razorpay_payment_id: response.razorpay_payment_id,
-                razorpay_signature: response.razorpay_signature,
-                vehicle_no: vehicle,
-                amount: amount
-              })
-            }).then(() => {
-              alert("Payment successful!");
-              window.location.href = "/user_dashboard";
-            });
+          handler: () => {
+            alert("Payment successful!");
+            window.location.href = "/user_dashboard";
           }
         };
         new Razorpay(options).open();

@@ -11,7 +11,7 @@
 /* ================= OFFICIAL THEME VARIABLES ================= */
 :root {
   --primary: #0b3c5d;
-  --primary-dark: #072c46;
+  --primary-dark: #02090e;
 
   --success: #2e7d32;
   --error: #c62828;
@@ -65,8 +65,8 @@ body {
   display: block;
   margin: 0 auto 1.4rem;
 
-  width: 120px;
-  height: 120px;
+  width: 180px;
+  height: 180px;
 
   object-fit: contain;
 }
@@ -76,13 +76,15 @@ h1 {
   font-size: 1.85rem;
   font-weight: 700;
   margin-bottom: 0.4rem;
+  color: #0b3a5b;          /* Dark navy blue (primary) */
 }
 
 .subtitle {
   font-size: 0.9rem;
-  color: var(--text-muted);
+  color: #475569;          /* Cool grey-blue (muted but readable) */
   margin-bottom: 2rem;
 }
+
 
 /* ================= FORM ================= */
 .form-group {
@@ -176,16 +178,41 @@ label {
 }
 
 
-  .brand-logo {
-  display: block;
-  margin: 0 auto 1.2rem;   /* ⬅ reduced bottom gap */
-  
-  width: 250px;
-  height: 250px;
+ /* ================= LOGO (CIRCULAR – SAME AS DASHBOARD) ================= */
+.brand-logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
 
-  object-fit: contain;
-  filter: drop-shadow(0 10px 22px rgba(0, 0, 0, 0.25));
+  width: 180px;
+  height: 180px;
+  margin: 0 auto 1.4rem;
+
+  border-radius: 50%;
+
+  /* SAME FLOW AS NAVBAR BAND */
+  background: linear-gradient(
+    180deg,
+    #0b3a5b 0%,     /* deep navy */
+    #072a3f 50%,    /* steel/navy blend */
+    #000205 100%    /* near black */
+  );
+
+  padding: 10px;
+
+ 
 }
+
+/* LOGO IMAGE INSIDE CIRCLE */
+.brand-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: 50%;
+  background: #ffffff; /* keeps logo clean */
+  padding: 8px;
+}
+
 
 h1 {
   margin-top: 0;          /* ⬅ remove extra space */
@@ -209,7 +236,7 @@ h1 {
 <body>
 
 <main class="login-container">
-  <img src="/static/smarttoll_logofinal.png"
+  <img src="/static/smarttoll_logofinal3.jpeg"
        class="brand-logo"
        alt="SmartToll Logo">
 

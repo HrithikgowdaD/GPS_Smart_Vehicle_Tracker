@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>SmartToll — User Dashboard</title>
+  <title>SmartToll</title>
 
   <!-- Bootstrap -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -89,27 +89,40 @@
     /* ===============================
        NAVBAR + BRAND + THEME TOGGLE
     ================================ */
-    .navbar {
-      position: sticky;
-      top: 0;
-      z-index: 20;
-      min-height: 54px;
-      padding-block: 8px;
-      background:
-        radial-gradient(circle at 0% 0%, rgba(129, 140, 248, 0.7), transparent 55%),
-        linear-gradient(90deg, #020617, #111827);
-      backdrop-filter: blur(18px);
-      border-bottom: 1px solid rgba(148, 163, 184, 0.55);
-      box-shadow: 0 14px 40px rgba(15, 23, 42, 0.95);
-    }
+   .navbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  min-height: 54px;
+  padding-block: 8px;
 
-    body:not(.dark-mode) .navbar {
-      background:
-        radial-gradient(circle at 0% 0%, rgba(129, 140, 248, 0.7), transparent 55%),
-        linear-gradient(90deg, #4f46e5, #8b5cf6);
-      border-bottom-color: rgba(255, 255, 255, 0.75);
-      box-shadow: 0 12px 32px rgba(79, 70, 229, 0.45);
-    }
+  /* NAVY → STEEL BLUE */
+  background: linear-gradient(
+    90deg,
+    #0b3a5b,   /* deep navy */
+     /* steel blue */
+    #000711    /* neutral dark grey */
+  );
+
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.35);
+
+
+}
+
+
+   body:not(.dark-mode) .navbar {
+  background: linear-gradient(
+    90deg,
+    #0b3a5b,   /* deep navy */
+     /* steel blue */
+    #000711    /* neutral grey */
+  );
+
+  border-bottom: 1px solid rgba(0,0,0,0.15);
+  box-shadow: 0 10px 28px rgba(0,0,0,0.35);
+}
+
 
     .navbar-brand {
       font-size: 0.95rem;
@@ -117,25 +130,16 @@
       text-transform: uppercase;
     }
 
-    .brand-logo-nav {
-      height: 24px;
-      width: auto;
-      border-radius: 12px;
-      padding: 3px 6px;
-      background:
-        radial-gradient(circle at 30% 0%, rgba(255, 255, 255, 0.75), transparent 60%),
-        linear-gradient(135deg, #22d3ee, #4f46e5);
-      box-shadow:
-        0 0 0 1px rgba(248, 250, 252, 0.8),
-        0 0 16px rgba(56, 189, 248, 0.9);
-      animation: logoGlow 4s ease-in-out infinite alternate;
-    }
+     .brand-logo-nav {
+      height: 80px;
+      width: 80px;
+      object-fit: contain;
+      border-radius: 50%;
+      padding: 3px;
+      
+     }
 
-    body:not(.dark-mode) .brand-logo-nav {
-      box-shadow:
-        0 0 0 1px rgba(129, 140, 248, 0.7),
-        0 0 16px rgba(59, 130, 246, 0.85);
-    }
+   
 
     .brand-text {
       display: flex;
@@ -205,18 +209,31 @@
     }
 
     .welcome-avatar {
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      background: conic-gradient(from 180deg at 50% 50%, #4f46e5, #22d3ee, #a855f7, #4f46e5);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #f9fafb;
-      font-weight: 600;
-      font-size: 0.96rem;
-      box-shadow: 0 10px 28px rgba(79, 70, 229, 0.6);
-    }
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+
+  /* SAME FLOW AS BAND */
+  background: linear-gradient(
+    180deg,
+    #0b3a5b 0%,     /* deep navy */
+    #072a3f 45%,    /* steel/navy blend */
+    #000205 100%    /* near black */
+  );
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 0.95rem;
+
+  box-shadow:
+    0 6px 14px rgba(0, 0, 0, 0.35),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
 
     .welcome-text h3 {
       font-size: 1.08rem;
@@ -259,7 +276,9 @@
       transform: translateY(-2px);
      box-shadow: 0 20px 55px rgba(152, 149, 149, 0.25);
 
-      border-color: rgba(129, 140, 248, 0.9);
+      border-color: #0b3a5b,   /* deep navy */
+    /* steel blue */
+    #00071267 ;
     }
 
     .card-header-lite {
@@ -274,7 +293,9 @@
     }
 
     .btn-primary-soft {
-      background-image: linear-gradient(135deg, #4f46e5, #a855f7);
+      background-image: linear-gradient(135deg,  #0b3a5b,   /* deep navy */
+    /* steel blue */
+    #00071267 );
       border: none;
       border-radius: var(--radius-pill);
       font-size: 0.8rem;
@@ -492,11 +513,11 @@
 <body>
   <nav class="navbar navbar-dark px-3">
     <a class="navbar-brand fw-bold d-flex align-items-center gap-2" href="#">
-      <img src="/static/smarttoll_logo.jpeg" alt="SmartToll GPS" class="brand-logo-nav">
+      <img src="/static/smarttoll_logofinal3.jpeg" alt="SmartToll GPS" class="brand-logo-nav">
       <span class="brand-text">
         <span class="brand-name">SMARTTOLL</span>
         <span class="brand-sub">
-          {% if user.role == "developer" %}Developer Dashboard{% else %}User Dashboard{% endif %}
+          {% if user.role == "developer" %}Developer Dashboard{% else %}{% endif %}
         </span>
       </span>
     </a>
