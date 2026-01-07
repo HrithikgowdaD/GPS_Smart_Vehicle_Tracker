@@ -26,7 +26,7 @@ for i, (lat, lng) in enumerate(points):
     print(f"🚗 Sending point {i+1}/{len(points)}: ({lat}, {lng})...")
     try:
         res = requests.post(
-            "http://127.0.0.1:5000/update",
+            "https://gps.hrithikgd.in/update",
             json={"lat": lat, "lng": lng},
             timeout=10
         )
