@@ -14,7 +14,7 @@ for i, (lat, lng) in enumerate(coords, start=1):
     print(f"📍 Sending point {i}: ({lat}, {lng})...")
     try:
         res = requests.post(
-            "http://127.0.0.1:5000/update",
+            "https://gps.hrithikgd.in/update",
             json={"lat": lat, "lng": lng},
             timeout=5
         )

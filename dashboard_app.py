@@ -142,7 +142,7 @@ def register_vehicle():
                 continue
 
             qr_path = f"{qr_dir}/{vno}.png"
-            qrcode.make(f"http://192.168.0.103:5000/vehicle/{vno}").save(qr_path)
+            qrcode.make(f"https://gps.hrithikgd.in/vehicle/{vno}").save(qr_path)
 
             vehicles_col.insert_one({
                 "vehicle_no": vno,

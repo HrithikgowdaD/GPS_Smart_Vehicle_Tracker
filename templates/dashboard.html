@@ -133,7 +133,7 @@
       });
     }
 
-    const socket = io("http://127.0.0.1:5000", { transports: ["websocket"] });
+    const socket = io("https://gps.hrithikgd.in", { transports: ["websocket"] });
 
     socket.on("connect", () => console.log("🟢 Connected to Socket.IO"));
     socket.on("disconnect", () => console.log("🔴 Disconnected"));
