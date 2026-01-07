@@ -267,8 +267,29 @@ def delete_vehicle(vehicle_no):
 @app.route("/user/history/<vehicle_no>")
 @login_required()
 def user_history(vehicle_no):
-    trips = list(trips_col.find({"vehicle_no": vehicle_no}))
-    return render_template("user_history.html", trips=trips, vehicle_no=vehicle_no)
+    history = list(
+        trips_col.find({"vehicle_no": vehicle_no})
+        .sort("timestamp", -1)
+    )
+    return render_template(
+        "history.html",
+        history=history,
+        vehicle_no=vehicle_no
+    )
+@app.route("/user/trip/map/<trip_id>")
+@login_required()
+def trip_map(trip_id):
+    trip = trips_col.find_one({"_id": ObjectId(trip_id)})
+
+    if not trip:
+        return "<h3>Trip not found</h3>", 404
+
+    return render_template(
+        "trip_map.html",
+        trip=trip,
+        google_api_key='AIzaSyDwHmT9VfKtdxVyvlO9FUCzbi87tpBWF6E'
+    )
+
 
 
 # ---------- LIVE API ----------
@@ -343,7 +364,9 @@ def process_trip(vehicle_no):
         ).km
 
         total_distance += dist
-        highway_distance += dist  # simplified
+        if dist > 0.5:     # > 500 meters → highway
+         highway_distance += dist
+
 
         route.append({
             "lat": p2["lat"],
@@ -353,13 +376,20 @@ def process_trip(vehicle_no):
     fare = round(highway_distance * 2.5, 2)
 
     trips_col.insert_one({
-        "vehicle_no": vehicle_no,
-        "total_distance": round(total_distance, 2),
-        "highway_distance": round(highway_distance, 2),
-        "fare": fare,
-        "route": route,
-        "created_at": datetime.utcnow()
-    })
+    "vehicle_no": vehicle_no,
+
+    "start_location": f"{pings[0]['lat']}, {pings[0]['lng']}",
+    "end_location": f"{pings[-1]['lat']}, {pings[-1]['lng']}",
+
+    "total_distance": round(total_distance, 2),
+    "highway_distance": round(highway_distance, 2),
+
+    "total_fare": fare,
+
+    "route": route,
+    "timestamp": datetime.utcnow()
+})
+
 
     vehicles_col.update_one(
         {"vehicle_no": vehicle_no},

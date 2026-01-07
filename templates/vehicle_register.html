@@ -8,49 +8,112 @@
   <!-- Bootstrap -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 
-  <style>
-    body {
-      background: linear-gradient(135deg, #c084fc, #a5b4fc);
-      min-height: 100vh;
-      font-family: 'Poppins', sans-serif;
-      color: #1e293b;
-    }
-    .card {
-      background: rgba(255,255,255,0.9);
-      border-radius: 15px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-      padding: 25px;
-    }
-    .btn-add {
-      background-color: #4f46e5;
-      color: white;
-      border: none;
-    }
-    .btn-add:hover {
-      background-color: #4338ca;
-    }
-    .btn-submit {
-      background-color: #22c55e;
-      color: white;
-      border: none;
-    }
-    .btn-submit:hover {
-      background-color: #16a34a;
-    }
-    .form-label {
-      font-weight: 600;
-    }
-    .navbar {
-      background: linear-gradient(90deg, #6366f1, #8b5cf6);
-      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-    }
-  </style>
+<style>
+  body {
+    background: #f3f4f6;                /* light grey */
+    min-height: 100vh;
+    font-family: 'Poppins', sans-serif;
+    color: #1f2937;                     /* dark grey text */
+  }
+
+  /* Navbar */
+  .navbar {
+    background: #1e3a8a;                /* navy blue */
+    box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+  }
+
+  .navbar-brand {
+    font-weight: 600;
+  }
+
+  /* Card */
+  .card {
+    background: #ffffff;
+    border-radius: 16px;
+    box-shadow: 0 12px 30px rgba(0,0,0,0.12);
+    padding: 28px;
+  }
+
+  h3 {
+    color: #1e3a8a;                     /* navy */
+  }
+
+  .form-label {
+    font-weight: 600;
+    color: #111827;                     /* near black */
+  }
+
+  .form-control {
+    border-radius: 8px;
+    border-color: #d1d5db;
+  }
+
+  .form-control:focus {
+    border-color: #1e3a8a;
+    box-shadow: 0 0 0 0.15rem rgba(30,58,138,0.25);
+  }
+
+  /* Buttons */
+  .btn-add {
+    background-color: #1e3a8a;
+    color: white;
+    border: none;
+    font-weight: 500;
+  }
+
+  .btn-add:hover {
+    background-color: #1e40af;
+  }
+
+  .btn-submit {
+    background-color: #1e3a8a;
+    color: white;
+    border: none;
+    font-weight: 500;
+  }
+
+  .btn-submit:hover {
+    background-color: #1e40af;
+  }
+
+  .btn-outline-light {
+    border-color: white;
+  }
+
+  /* Table */
+  table {
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  thead {
+    background: #1e3a8a;
+    color: white;
+  }
+
+  thead th {
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-align: center;
+  }
+
+  tbody td {
+    text-align: center;
+    font-size: 0.9rem;
+    color: #111827;
+  }
+
+  tbody tr:nth-child(even) {
+    background: #f9fafb;
+  }
+</style>
+
 </head>
 
 <body>
   <!-- Navbar -->
   <nav class="navbar navbar-dark px-3">
-    <a class="navbar-brand fw-bold" href="#">🚗 Smart Toll — Register Vehicle</a>
+    <a class="navbar-brand fw-bold" href="#">Smart Toll — Register Vehicle</a>
     <div class="ms-auto">
       <a href="{{ url_for('user_dashboard') }}" class="btn btn-outline-light btn-sm">⬅ Back to Dashboard</a>
     </div>
@@ -81,8 +144,8 @@
         </div>
 
         <div class="d-flex justify-content-between align-items-center mt-3">
-          <button type="button" class="btn btn-add btn-sm" onclick="addVehicleRow()">➕ Add Another Vehicle</button>
-          <button type="submit" class="btn btn-submit btn-sm">✅ Register Vehicle(s)</button>
+          <button type="button" class="btn btn-add btn-sm" onclick="addVehicleRow()">Add Another Vehicle</button>
+          <button type="submit" class="btn btn-submit btn-sm">Register Vehicle(s)</button>
         </div>
       </form>
 

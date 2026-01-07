@@ -9,52 +9,92 @@
   <!-- Bootstrap -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 
-  <style>
-    body {
-      background: linear-gradient(135deg, #a5b4fc, #c084fc);
-      min-height: 100vh;
-      font-family: 'Poppins', sans-serif;
-      color: #1e293b;
-    }
+ <style>
+  /* ================= GLOBAL ================= */
+  body {
+    background: #f3f4f6;
+    min-height: 100vh;
+    font-family: 'Poppins', sans-serif;
+    color: #1e293b;
+    padding-top: 90px; /* space for band */
+  }
 
-    .card {
-      border-radius: 15px;
-      background: rgba(255, 255, 255, 0.9);
-      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
-    }
+  /* ================= TOP BAND ================= */
+  body::before {
+    content: "";
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 64px;
+    background: linear-gradient(
+      90deg,
+      #0b3c5d,   /* Navy */
+      #355f7c,   /* Steel blue */
+      #6b7280    /* Neutral grey */
+    );
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+    z-index: 1000;
+  }
 
-    table {
-      background: white;
-      border-radius: 10px;
-      overflow: hidden;
-    }
+  /* ================= CARD ================= */
+  .card {
+    border-radius: 16px;
+    background: #ffffff;
+    box-shadow: 0 14px 35px rgba(0, 0, 0, 0.12);
+    border: 1px solid #e5e7eb;
+  }
 
-    th {
-      background: #6366f1 !important;
-      color: white !important;
-    }
+  /* ================= TABLE ================= */
+  table {
+    background: #ffffff;
+    border-radius: 12px;
+    overflow: hidden;
+  }
 
-    #mapModal .modal-dialog {
-      max-width: 850px;
-    }
+  th {
+    background: #e5e7eb !important;
+    color: #111827 !important;
+    font-weight: 600;
+    font-size: 0.85rem;
+    border-color: #d1d5db;
+  }
 
-    #tripMap {
-      height: 420px;
-      width: 100%;
-      border-radius: 10px;
-    }
+  td {
+    font-size: 0.9rem;
+    color: #1f2937;
+    border-color: #e5e7eb;
+  }
 
-    .btn-outline-primary {
-      border-color: #6366f1;
-      color: #6366f1;
-    }
+  tbody tr:nth-child(even) {
+    background: #f9fafb;
+  }
 
-    .btn-outline-primary:hover {
-      background-color: #6366f1;
-      color: white;
-    }
-  </style>
-</head>
+  /* ================= BUTTONS ================= */
+  .btn-outline-primary {
+    border-color: #475569;
+    color: #475569;
+    font-size: 0.85rem;
+    border-radius: 8px;
+  }
+
+  .btn-outline-primary:hover {
+    background-color: #475569;
+    color: #ffffff;
+  }
+
+  /* ================= MAP ================= */
+  #mapModal .modal-dialog {
+    max-width: 850px;
+  }
+
+  #tripMap {
+    height: 420px;
+    width: 100%;
+    border-radius: 12px;
+  }
+</style>
+<head></head>
 
 <body>
   <div class="container mt-5">
@@ -87,7 +127,7 @@
               <td>{{ t.highway_distance }}</td>
               <td>₹{{ t.fare }}</td>
               <td>
-                <button class="btn btn-sm btn-outline-primary" onclick='showOnMap({{ t.route | tojson }})'>
+                <button class="btn btn-sm btn-outline-primary" onclick="showOnMap({{ t.route | tojson | safe }})">
                   View
                 </button>
 

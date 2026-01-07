@@ -1,170 +1,608 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>SmartToll — User Dashboard</title>
+  <title>SmartToll</title>
 
   <!-- Bootstrap -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 
   <style>
+    /* ===============================
+       DESIGN TOKENS
+    ================================ */
+    :root {
+      --primary: #020617;
+      --accent: #4f46e5;
+
+      --bg-gradient-start: #020617;
+      --bg-gradient-end: #020617;
+
+      --surface: #0b1120;
+      --surface-soft: rgba(15, 23, 42, 0.92);
+      --border-subtle: rgba(148, 163, 184, 0.3);
+
+      --text-main: #e5e7eb;
+      --text-muted: #9ca3af;
+
+      --radius-card: 18px;
+      --radius-pill: 999px;
+
+      --shadow-soft: 0 18px 45px rgba(15, 23, 42, 0.9);
+      --shadow-chip: 0 10px 30px rgba(15, 23, 42, 0.9);
+    }
+
+    /* Light mode overrides */
+    body:not(.dark-mode) {
+      --bg-gradient-start: #e5edff;
+      --bg-gradient-end: #eef2ff;
+
+      --surface: #ffffff;
+      --surface-soft: rgba(255, 255, 255, 0.88);
+      --border-subtle: rgba(2, 13, 28, 0.28);
+
+      --text-main: #020617;
+      --text-muted: #6b7280;
+
+      --shadow-soft: 0 16px 40px rgba(15, 23, 42, 0.16);
+      --shadow-chip: 0 8px 24px rgba(15, 23, 42, 0.20);
+    }
+
+    /* ===============================
+       GLOBAL BACKGROUND – HIGHWAY VISUAL
+    ================================ */
     body {
-      background: linear-gradient(135deg, #a5b4fc, #c084fc);
       min-height: 100vh;
-      font-family: 'Poppins', sans-serif;
-      color: #1e293b;
+      font-family: 'Poppins', system-ui, -apple-system, 'Segoe UI', sans-serif;
+      color: var(--text-main);
+      background:
+        linear-gradient(
+          135deg,
+          rgba(2, 6, 23, 0.96),
+          rgba(15, 23, 42, 0.92)
+        ),
+        url("") center center / cover no-repeat fixed;
+      background-blend-mode: overlay;
+      transition: background 0.3s ease, color 0.3s ease;
     }
 
-    #map {
-      height: 450px;
-      border-radius: 15px;
-      margin-top: 20px;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    body:not(.dark-mode) {
+      background:
+        linear-gradient(
+          135deg,
+          rgba(239, 246, 255, 0.90),
+          rgba(224, 231, 255, 0.85)
+        ),
+        url("") center center / cover no-repeat fixed;
+      background-blend-mode: soft-light;
     }
 
-    .navbar {
-      background: linear-gradient(90deg, #6366f1, #8b5cf6);
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    /* ===============================
+       BASE / LAYOUT
+    ================================ */
+    .page-shell {
+      max-width: 1120px;
+      margin: 20px auto 32px;
     }
 
-    .legend {
-      margin-top: 10px;
-      padding: 10px;
-      border-radius: 10px;
-      background: rgba(255, 255, 255, 0.8);
+    /* ===============================
+       NAVBAR + BRAND + THEME TOGGLE
+    ================================ */
+   .navbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  min-height: 54px;
+  padding-block: 8px;
+
+  /* NAVY → STEEL BLUE */
+  background: linear-gradient(
+    90deg,
+    #0b3a5b,   /* deep navy */
+     /* steel blue */
+    #000711    /* neutral dark grey */
+  );
+
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.35);
+
+
+}
+
+
+   body:not(.dark-mode) .navbar {
+  background: linear-gradient(
+    90deg,
+    #0b3a5b,   /* deep navy */
+     /* steel blue */
+    #000711    /* neutral grey */
+  );
+
+  border-bottom: 1px solid rgba(0,0,0,0.15);
+  box-shadow: 0 10px 28px rgba(0,0,0,0.35);
+}
+
+
+    .navbar-brand {
+      font-size: 0.95rem;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+    }
+
+     .brand-logo-nav {
+      height: 80px;
+      width: 80px;
+      object-fit: contain;
+      border-radius: 50%;
+      padding: 3px;
+      
+     }
+
+   
+
+    .brand-text {
       display: flex;
-      justify-content: center;
-      gap: 20px;
-      font-size: 14px;
+      flex-direction: column;
+      line-height: 1.1;
     }
 
-    .legend span {
+    .brand-name {
+      font-size: 0.88rem;
+      letter-spacing: 0.22em;
+    }
+
+    .brand-sub {
+      font-size: 0.72rem;
+      opacity: 0.9;
+    }
+
+    @keyframes logoGlow {
+      from { transform: translateY(0); filter: brightness(1); }
+      to   { transform: translateY(-1px); filter: brightness(1.08); }
+    }
+
+    .navbar .btn {
+      border-radius: var(--radius-pill);
+      padding-inline: 14px;
+      font-size: 0.78rem;
+    }
+
+    .navbar .btn:hover {
+      background-color: rgba(248, 250, 252, 0.16);
+    }
+
+    .theme-toggle {
+      border-radius: var(--radius-pill);
+      border: 1px solid rgba(248, 250, 252, 0.55);
+      padding: 4px 11px;
+      font-size: 0.76rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: #e5e7eb;
+      background: rgba(15, 23, 42, 0.6);
+      backdrop-filter: blur(16px);
+      cursor: pointer;
+    }
+
+    .theme-toggle span {
+      font-size: 0.76rem;
+    }
+
+    body:not(.dark-mode) .theme-toggle {
+      color: #0f172a;
+      background: rgba(255, 255, 255, 0.85);
+      border-color: rgba(148, 163, 184, 0.7);
+      box-shadow: 0 6px 18px rgba(15, 23, 42, 0.25);
+    }
+
+    /* ===============================
+       HEADER / WELCOME
+    ================================ */
+    .welcome-card {
+      margin-top: 18px;
+      padding: 16px 18px;
       display: flex;
       align-items: center;
-      gap: 5px;
+      gap: 16px;
     }
 
-    .color-box {
-      width: 16px;
-      height: 16px;
-      border-radius: 3px;
+    .welcome-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+
+  /* SAME FLOW AS BAND */
+  background: linear-gradient(
+    180deg,
+    #0b3a5b 0%,     /* deep navy */
+    #072a3f 45%,    /* steel/navy blend */
+    #000205 100%    /* near black */
+  );
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 0.95rem;
+
+  box-shadow:
+    0 6px 14px rgba(0, 0, 0, 0.35),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+
+    .welcome-text h3 {
+      font-size: 1.08rem;
+      margin-bottom: 2px;
     }
 
-    .trip-summary {
-      background: rgba(255, 255, 255, 0.9);
-      border-radius: 10px;
-      margin-top: 20px;
-      padding: 15px;
-      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    .welcome-text p {
+      margin: 0;
+      font-size: 0.82rem;
+      color: var(--text-muted);
+    }
+
+    /* ===============================
+       GLASSMORPHIC CARDS + MODAL
+    ================================ */
+    .card,
+    .welcome-card,
+    .modal-content {
+      border-radius: var(--radius-card);
+      border: 1px solid var(--border-subtle);
+      background:
+        radial-gradient(circle at 0% 0%, rgba(148, 163, 184, 0.25), transparent 55%),
+        radial-gradient(circle at 100% 100%, rgba(56, 189, 248, 0.20), transparent 60%),
+        rgba(15, 23, 42, 0.78);
+      box-shadow: var(--shadow-soft);
+      backdrop-filter: blur(22px);
+      transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    }
+
+    body:not(.dark-mode) .card,
+    body:not(.dark-mode) .welcome-card,
+    body:not(.dark-mode) .modal-content {
+      background:
+        radial-gradient(circle at 0% 0%, rgba(129, 140, 248, 0.18), transparent 55%),
+        rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(18px);
+    }
+
+    .card:hover {
+      transform: translateY(-2px);
+     box-shadow: 0 20px 55px rgba(152, 149, 149, 0.25);
+
+      border-color: #0b3a5b,   /* deep navy */
+    /* steel blue */
+    #00071267 ;
+    }
+
+    .card-header-lite {
+      border-bottom: 1px solid rgba(148, 163, 184, 0.3);
+      padding-bottom: 10px;
+      margin-bottom: 10px;
+    }
+
+    .card-header-lite h5 {
+      margin: 0;
+      font-size: 0.98rem;
+    }
+
+    .btn-primary-soft {
+      background-image: linear-gradient(135deg,  #0b3a5b,   /* deep navy */
+    /* steel blue */
+    #00071267 );
+      border: none;
+      border-radius: var(--radius-pill);
+      font-size: 0.8rem;
+      padding-inline: 16px;
+      box-shadow: 0 10px 24px rgba(79, 70, 229, 0.6);
+      color: #f9fafb;
+      transition: background-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+    }
+
+    .btn-primary-soft:hover {
+      filter: brightness(1.05);
+      box-shadow: 0 14px 30px rgba(79, 70, 229, 0.7);
+      transform: translateY(-1px);
+    }
+
+    /* ===============================
+       TABLE: YOUR VEHICLES
+    ================================ */
+    .table {
+      margin-bottom: 0;
+      font-size: 0.84rem;
+      color: var(--text-main);
+    }
+
+    .table thead {
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+    }
+
+    .table thead th {
+      border-bottom-width: 1px;
+      border-color: rgba(148, 163, 184, 0.45);
+      background-color: rgba(15, 23, 42, 0.04);
+    }
+
+    body:not(.dark-mode) .table thead th {
+      background-color: #f9fafb;
+      border-color: rgba(203, 213, 225, 0.9);
+    }
+
+    .table tbody tr:nth-child(even) {
+      background-color: rgba(15, 23, 42, 0.35);
+    }
+
+    body:not(.dark-mode) .table tbody tr:nth-child(even) {
+      background-color: rgba(248, 250, 252, 0.85);
+    }
+
+    .table tbody tr:hover {
+      background-color: rgba(79, 70, 229, 0.32);
+    }
+
+    body:not(.dark-mode) .table tbody tr:hover {
+      background-color: rgba(129, 140, 248, 0.14);
     }
 
     .vehicle-row {
       cursor: pointer;
     }
 
-    .vehicle-row:hover {
-      background-color: rgba(99, 102, 241, 0.12);
-    }
-
     .qr-thumb {
       cursor: pointer;
-      transition: transform 0.2s;
+      transition: transform 0.18s ease, box-shadow 0.18s ease;
+      box-shadow: 0 0 0 1px rgba(148, 163, 184, 0.45);
+      background-color: rgba(15, 23, 42, 0.9);
+    }
+
+    body:not(.dark-mode) .qr-thumb {
+      background-color: #f9fafb;
+      box-shadow: 0 0 0 1px rgba(148, 163, 184, 0.4);
     }
 
     .qr-thumb:hover {
-      transform: scale(1.1);
+      transform: scale(1.05);
+      box-shadow: 0 10px 22px rgba(15, 23, 42, 0.7);
     }
 
+    .vehicles-actions {
+      gap: 0.35rem;
+    }
+
+    .vehicles-actions .btn {
+      border-radius: var(--radius-pill);
+      font-size: 0.74rem;
+      padding-block: 3px;
+      padding-inline: 10px;
+      transition: background-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+    }
+
+    .vehicles-actions .btn-outline-primary {
+      border-color: rgba(59, 130, 246, 0.7);
+      color: #60a5fa;
+    }
+
+    .vehicles-actions .btn-outline-success {
+      border-color: rgba(34, 197, 94, 0.75);
+      color: #4ade80;
+    }
+
+    .vehicles-actions .btn-outline-danger {
+      border-color: rgba(239, 68, 68, 0.8);
+      color: #fb7185;
+    }
+
+    .vehicles-actions .btn-outline-primary:hover,
+    .vehicles-actions .btn-outline-success:hover,
+    .vehicles-actions .btn-outline-danger:hover {
+      background-color: rgba(15, 23, 42, 0.85);
+    }
+
+    body:not(.dark-mode) .vehicles-actions .btn-outline-primary:hover {
+      background-color: rgba(59, 130, 246, 0.06);
+    }
+    body:not(.dark-mode) .vehicles-actions .btn-outline-success:hover {
+      background-color: rgba(34, 197, 94, 0.06);
+    }
+    body:not(.dark-mode) .vehicles-actions .btn-outline-danger:hover {
+      background-color: rgba(239, 68, 68, 0.06);
+    }
+
+    /* ===============================
+       MAP + LEGEND
+    ================================ */
     #map {
-      height: 450px !important;
+      height: 430px !important;
       width: 100% !important;
-      min-height: 450px;
+      min-height: 430px;
+      border-radius: 18px;
+      margin-top: 10px;
+      box-shadow: 0 22px 55px rgba(15, 23, 42, 0.95);
+      border: 1px solid rgba(37, 99, 235, 0.75);
+      background: #020617;
+      overflow: hidden;
+    }
+
+    body:not(.dark-mode) #map {
       background: #e5e7eb;
-      /* debug fallback */
+      box-shadow: 0 18px 45px rgba(15, 23, 42, 0.28);
+      border-color: rgb(208, 212, 217);
+    }
+
+    .legend {
+      margin-top: 12px;
+      padding: 7px 16px;
+      border-radius: var(--radius-pill);
+      background:
+        radial-gradient(circle at 0% 0%, rgba(215, 226, 229, 0.28), transparent 60%),
+        rgba(15, 23, 42, 0.96);
+      display: inline-flex;
+      justify-content: center;
+      align-items: center;
+      gap: 16px;
+      font-size: 0.78rem;
+      color: #e5e7eb;
+      box-shadow: var(--shadow-chip);
+      backdrop-filter: blur(18px);
+    }
+
+    body:not(.dark-mode) .legend {
+      background:
+        radial-gradient(circle at 0% 0%, rgba(56, 189, 248, 0.25), transparent 60%),
+        rgba(15, 23, 42, 0.92);
+    }
+
+    .legend span {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+    }
+
+    .color-box {
+      width: 14px;
+      height: 14px;
+      border-radius: 999px;
+      box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.65);
+    }
+
+    /* ===============================
+       MODAL (extra spacing)
+    ================================ */
+    .modal-content {
+      padding: 1rem 1.25rem;
+    }
+
+    /* ===============================
+       UTILITIES / RESPONSIVE
+    ================================ */
+    @media (max-width: 768px) {
+      .page-shell {
+        margin-top: 16px;
+        padding-inline: 10px;
+      }
+
+      .welcome-card {
+        flex-direction: row;
+        align-items: flex-start;
+      }
+
+      .legend {
+        width: 100%;
+        justify-content: space-around;
+      }
+
+      #map {
+        height: 360px !important;
+        min-height: 360px;
+      }
     }
   </style>
 </head>
 
 <body>
-
   <nav class="navbar navbar-dark px-3">
-    <a class="navbar-brand fw-bold" href="#">
-      🚗 SmartToll —
-      {% if user.role == "developer" %}
-      Developer Dashboard
-      {% else %}
-      User Dashboard
-      {% endif %}
+    <a class="navbar-brand fw-bold d-flex align-items-center gap-2" href="#">
+      <img src="/static/smarttoll_logofinal3.jpeg" alt="SmartToll GPS" class="brand-logo-nav">
+      <span class="brand-text">
+        <span class="brand-name">SMARTTOLL</span>
+        <span class="brand-sub">
+          {% if user.role == "developer" %}Developer Dashboard{% else %}{% endif %}
+        </span>
+      </span>
     </a>
-    <div class="ms-auto">
+    <div class="ms-auto d-flex align-items-center gap-2">
+      <button id="themeToggle" type="button" class="theme-toggle border-0">
+        <span id="themeIcon">🌙</span>
+        <span id="themeLabel">Dark</span>
+      </button>
       <a href="/logout" class="btn btn-outline-light btn-sm">Logout</a>
     </div>
   </nav>
 
-  <div class="container mt-4">
-    <h3>Welcome, {{ user.full_name }}</h3>
-    <p>Email: {{ user.email }}</p>
+  <div class="page-shell container">
+    <!-- Welcome block -->
+    <div class="welcome-card mt-3">
+      <div class="welcome-avatar">
+        {{ user.full_name[0]|upper if user.full_name }}
+      </div>
+      <div class="welcome-text">
+        <h3>Welcome, {{ user.full_name }}</h3>
+        <p>Email: {{ user.email }}</p>
+      </div>
+    </div>
 
-    <div class="card mt-3 p-3">
-      <div class="d-flex justify-content-between align-items-center mb-3">
+    <!-- Vehicles card -->
+    <div class="card mt-4 p-3">
+      <div class="d-flex justify-content-between align-items-center card-header-lite">
         <h5 class="fw-bold mb-0">Your Vehicles</h5>
-        <a href="{{ url_for('register_vehicle') }}" class="btn btn-sm btn-primary">➕ Add Vehicle</a>
+        <a href="{{ url_for('register_vehicle') }}" class="btn btn-sm btn-primary-soft">Add Vehicle</a>
       </div>
 
       {% if vehicles %}
-      <table class="table table-bordered align-middle">
-        <thead class="table-light">
+      <table class="table align-middle">
+        <thead>
           <tr>
             <th>Vehicle No</th>
             <th>Owner</th>
-            <th>QR Code</th>
-            <th>Balance (₹)</th>
-            <th>Actions</th>
+            <th class="text-center">QR Code</th>
+            <th class="text-end">Balance (₹)</th>
+            <th class="text-center">Actions</th>
           </tr>
         </thead>
 
         <tbody>
           {% for v in vehicles %}
           <tr class="vehicle-row" onclick="focusVehicle('{{ v.vehicle_no }}')">
-
             <td class="fw-semibold">{{ v.vehicle_no }}</td>
             <td>{{ v.owner_name }}</td>
 
-            <!-- ✅ FIXED QR CLICK -->
+            <!-- QR -->
             <td class="text-center">
               <img
                 src="https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=http://192.168.0.103:5000/vehicle/{{ v.vehicle_no }}"
                 width="60" class="border rounded p-1 qr-thumb" onclick="openQR(event, '{{ v.vehicle_no }}')">
-              <div class="small text-primary">Click</div>
+              <div class="small text-primary mt-1">Click</div>
             </td>
 
-            <td class="fw-bold text-success">
+            <td class="fw-bold text-success text-end">
               ₹{{ "%.2f"|format(v.balance) }}
             </td>
 
-            <td class="d-flex justify-content-center gap-1 flex-wrap">
+            <td class="d-flex justify-content-center flex-wrap vehicles-actions">
+              <a href="{{ url_for('user_history', vehicle_no=v.vehicle_no) }}"
+                 class="btn btn-sm btn-outline-primary">History</a>
 
-              <a href="{{ url_for('user_history', vehicle_no=v.vehicle_no) }}" class="btn btn-sm btn-outline-primary">📜
-                History</a>
+              <a href="{{ url_for('wallet_add') }}"
+                 class="btn btn-sm btn-outline-success">Balance</a>
 
-              <a href="{{ url_for('wallet_add') }}" class="btn btn-sm btn-outline-success">💰 Balance</a>
+              <button
+  class="btn btn-sm btn-outline-danger"
+  onclick="startTracking('{{ v.vehicle_no }}')">
+  Track
+</button>
 
-              <button class="btn btn-sm btn-outline-danger">📍 Track</button>
 
               {% if user.role == "developer" %}
               <form action="{{ url_for('delete_vehicle', vehicle_no=v.vehicle_no) }}" method="POST"
-                style="display:inline;" onsubmit="return confirm('Are you sure you want to delete this vehicle?');">
-
-                <button type="submit" class="btn btn-sm btn-danger">
-                  🗑 Delete
-                </button>
+                    style="display:inline;"
+                    onsubmit="return confirm('Are you sure you want to delete this vehicle?');">
+                  <button type="submit" class="btn btn-sm btn-danger">
+                    🗑 Delete
+                  </button>
               </form>
               {% endif %}
-
             </td>
-
           </tr>
           {% endfor %}
         </tbody>
@@ -172,19 +610,26 @@
       {% endif %}
     </div>
 
-    <h5 class="mt-4 fw-bold text-dark">📍 Live Vehicle Tracking</h5>
-    <div id="map"></div>
+    <!-- Live tracking -->
+    <div class="card mt-4 p-3">
+      <div class="d-flex justify-content-between align-items-center card-header-lite">
+        <h5 class="fw-bold mb-0">Live Vehicle Tracking</h5>
+      </div>
+      <div id="map"></div>
 
-    <div class="legend mt-2">
-      <span>
-        <div class="color-box" style="background:#2563eb;"></div> Highway
-      </span>
-      <span>
-        <div class="color-box" style="background:#22c55e;"></div> City Road
-      </span>
-      <span>
-        <div class="color-box" style="background:#dc2626;"></div> Toll Zone
-      </span>
+      <div class="mt-3 d-flex justify-content-center">
+        <div class="legend">
+          <span>
+            <div class="color-box" style="background:#2563eb;"></div> Highway
+          </span>
+          <span>
+            <div class="color-box" style="background:#22c55e;"></div> City Road
+          </span>
+          <span>
+            <div class="color-box" style="background:#dc2626;"></div> Toll Zone
+          </span>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -201,10 +646,7 @@
   </div>
 
   <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
-
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-
-
 
   <script>
     console.log(" USER DASHBOARD JS LOADED");
@@ -215,6 +657,8 @@
 
     const markers = {};
     const routePolylines = {};
+    let activeVehicle = null;
+
 
     function initMap() {
       console.log("✅ initMap called");
@@ -229,22 +673,30 @@
       directionsService = new google.maps.DirectionsService();
     }
 
-    // 🔥 SOCKET
     const socket = io(window.location.origin, {
       transports: ["polling", "websocket"]
     });
+    function startTracking(vehicleNo) {
+  activeVehicle = vehicleNo;
+  map.setZoom(15);
+
+  console.log("🚗 Tracking started for:", vehicleNo);
+}
+
 
     socket.on("connect", () => {
       console.log("✅ SOCKET CONNECTED");
     });
 
     socket.on("location_update", data => {
-      console.log("📍 UPDATE:", data);
+  if (activeVehicle && data.vehicle_no !== activeVehicle) return;
 
-      const { vehicle_no, lat, lng } = data;
+  console.log("📍 UPDATE:", data);
+
+  const { vehicle_no, lat, lng } = data;
+
       const pos = new google.maps.LatLng(lat, lng);
 
-      // First update
       if (!markers[vehicle_no]) {
         markers[vehicle_no] = new google.maps.Marker({
           position: pos,
@@ -267,7 +719,6 @@
 
       const origin = markers[vehicle_no]._lastPos;
 
-      // Snap to road and extend polyline
       directionsService.route(
         {
           origin,
@@ -287,7 +738,6 @@
       markers[vehicle_no]._lastPos = pos;
     });
 
-    // ✅ QR FUNCTION MUST BE GLOBAL
     function openQR(event, vehicleNo) {
       event.stopPropagation();
       document.getElementById("qrVehicleNo").innerText = vehicleNo;
@@ -296,11 +746,36 @@
         encodeURIComponent("http://192.168.0.103:5000/vehicle/" + vehicleNo);
       new bootstrap.Modal(document.getElementById("qrModal")).show();
     }
+
+    // Dark / Light toggle with localStorage
+    const themeToggleBtn = document.getElementById('themeToggle');
+    const themeIcon = document.getElementById('themeIcon');
+    const themeLabel = document.getElementById('themeLabel');
+
+    function applyTheme(mode) {
+      if (mode === 'dark') {
+        document.body.classList.add('dark-mode');
+        themeIcon.textContent = '☀️';
+        themeLabel.textContent = 'Light';
+      } else {
+        document.body.classList.remove('dark-mode');
+        themeIcon.textContent = '🌙';
+        themeLabel.textContent = 'Dark';
+      }
+    }
+
+    const storedTheme = localStorage.getItem('smarttoll-dashboard-theme');
+    applyTheme(storedTheme === 'dark' ? 'dark' : 'light');
+
+    themeToggleBtn.addEventListener('click', () => {
+      const isDark = document.body.classList.toggle('dark-mode');
+      const mode = isDark ? 'dark' : 'light';
+      localStorage.setItem('smarttoll-dashboard-theme', mode);
+      applyTheme(mode);
+    });
   </script>
 
   <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDwHmT9VfKtdxVyvlO9FUCzbi87tpBWF6E&callback=initMap"
     async defer></script>
-
 </body>
-
 </html>
