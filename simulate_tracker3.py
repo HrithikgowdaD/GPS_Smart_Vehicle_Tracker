@@ -1,7 +1,7 @@
 import time, requests, json
 
 # Your Flask server URL
-SERVER_URL = "http://127.0.0.1:5000"
+SERVER_URL = "https://gps.hrithikgd.in"
 
 # Vehicle to simulate
 VEHICLE_NO = "KA50MC1234"

@@ -8,8 +8,8 @@ from geopy.distance import geodesic
 API_KEY = "AIzaSyDwHmT9VfKtdxVyvlO9FUCzbi87tpBWF6E"
 gmaps = googlemaps.Client(key=API_KEY)
 
-API_URL = "http://127.0.0.1:5000/api/update_location"
-LOG_URL = "http://127.0.0.1:5000/api/track_and_log"
+API_URL = "https://gps.hrithikgd.in/api/update_location"
+LOG_URL = "https://gps.hrithikgd.in/api/track_and_log"
 
 START = (12.9716, 77.5946)   # Bengaluru
 END   = (12.2958, 76.6394)   # Mysuru
@@ -114,8 +114,8 @@ if __name__ == "__main__":
 # API_KEY = "AIzaSyDwHmT9VfKtdxVyvlO9FUCzbi87tpBWF6E"  # same key you use in frontend
 # gmaps = googlemaps.Client(key=API_KEY)
 
-# API_URL = "http://127.0.0.1:5000/api/update_location"
-# LOG_URL = "http://127.0.0.1:5000/api/track_and_log"
+# API_URL = "https://gps.hrithikgd.in/api/update_location"
+# LOG_URL = "https://gps.hrithikgd.in/api/track_and_log"
 
 # START = (12.9716, 77.5946)   # Bengaluru
 # END   = (22.2604, 84.8536)   # Odisha example
@@ -217,8 +217,8 @@ if __name__ == "__main__":
 # # route_points = []
 
 
-# # API_URL = "http://127.0.0.1:5000/api/update_location"   # Flask endpoint
-# # LOG_URL = "http://127.0.0.1:5000/api/track_and_log"     # Final trip log endpoint
+# # API_URL = "https://gps.hrithikgd.in/api/update_location"   # Flask endpoint
+# # LOG_URL = "https://gps.hrithikgd.in/api/track_and_log"     # Final trip log endpoint
 
 
 # # def interpolate_coords(start, end, steps):
